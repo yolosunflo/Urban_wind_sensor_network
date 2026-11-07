@@ -6,6 +6,12 @@ namespace uwsn {
 
 void Aggregator::reset() { *this = Aggregator(); }
 
+void Aggregator::addTemp(float tempC) {
+  if (tempC < TEMP_MIN_C || tempC > TEMP_MAX_C) { tBad_++; return; }  // reject implausible value
+  tSum_ += tempC;
+  tN_++;
+}
+
 void Aggregator::add(const WindSample& s) {
   sample_count++;
   const float d = s.speed_ms - mean_;
@@ -36,6 +42,10 @@ WindAggregate Aggregator::compute() const {
   if (sample_count < (BURST_S * 1000UL / SAMPLE_PERIOD_MS) * 0.8f) a.flags |= Q_FEW_SAMPLES;
   if (maxSpeed_ > SPEED_MAX_MS)                           a.flags |= Q_OUT_OF_RANGE;
   if (maxSame_ > 300)                                     a.flags |= Q_STUCK;  // TODO tune
+  // Temperature: mean of valid readings; fault if none, or if most were rejected
+  a.hasTemp    = (tN_ > 0);
+  a.meanTemp_c = a.hasTemp ? tSum_ / tN_ : 0.0f;
+  if (!a.hasTemp || tBad_ > tN_) a.flags |= Q_TEMP_FAULT;
   return a;
 }
 

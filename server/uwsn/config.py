@@ -24,6 +24,9 @@ class Settings:
     window_s: int = 600            # expected interval between uplinks
     max_speed_ms: float = 60.0
     max_jump_ms: float = 15.0      # spike threshold between consecutive windows
+    temp_min_c: float = -40.0
+    temp_max_c: float = 60.0
+    max_temp_jump_c: float = 5.0   # max change between two 10-min windows
     stuck_windows: int = 6         # identical values -> sensor stuck
     low_battery_v: float = 3.3
     recalibration_days: int = 180

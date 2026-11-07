@@ -13,7 +13,7 @@ sensors = repo.load_sensors()
 
 # TODO: sidebar filters (sensors, date range, show only usable data)
 # TODO: map with one marker per sensor (colour = mean speed, arrow = direction)
-# TODO: time series of speed / gust per sensor
+# TODO: time series of speed / gust / temperature per sensor
 # TODO: wind rose, low-wind fraction per street
 # TODO: network health panel (battery, last seen, availability, calibration due)
 # TODO: CSV download button

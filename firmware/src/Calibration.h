@@ -8,6 +8,7 @@ struct CalibrationParams {
   float    speedOffsetV  = 0.0f;   // voltage at 0 m/s
   float    speedGain     = 1.0f;   // m/s per volt (from datasheet / wind tunnel)
   float    dirOffsetDeg  = 0.0f;   // mounting orientation correction
+  float    tempOffsetC   = 0.0f;   // added to the temperature reading (from reference comparison)
   uint32_t calibratedAt  = 0;      // unix time of last calibration
   uint32_t validForDays  = 180;    // after this, Q_CALIBRATION_DUE
 };
@@ -20,6 +21,7 @@ class Calibration {
   const CalibrationParams& params() const { return params_; }
 
   WindSample apply(const RawSample& raw) const;   // ADC counts -> m/s, deg
+  float applyTemp(float rawTempC) const;          // temperature + offset correction
   bool isDue(uint32_t nowUnix) const;
 
  private:

@@ -8,6 +8,7 @@ class DataValidator:
     def __init__(self):
         self._history = defaultdict(lambda: deque(maxlen=S.stuck_windows))
         self._last_seq = {}
+        self._last_temp = {}
 
     def validate(self, m: Measurement) -> Measurement:
         flags = m.flags
@@ -34,7 +35,18 @@ class DataValidator:
             flags |= QualityFlag.MISSING_BEFORE
         self._last_seq[m.device_id] = m.seq
 
-        # 5. battery
+        # 5. temperature: only flags the temperature, wind data stays usable
+        if m.temp_c is None:
+            flags |= QualityFlag.TEMP_FAULT
+        else:
+            prev = self._last_temp.get(m.device_id)
+            if not (S.temp_min_c <= m.temp_c <= S.temp_max_c) or \
+               (prev is not None and abs(m.temp_c - prev) > S.max_temp_jump_c):
+                flags |= QualityFlag.TEMP_FAULT
+            else:
+                self._last_temp[m.device_id] = m.temp_c
+
+        # 6. battery
         if m.battery_v < S.low_battery_v:
             flags |= QualityFlag.LOW_BATTERY
 

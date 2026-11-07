@@ -23,6 +23,10 @@ WindSample Calibration::apply(const RawSample& r) const {
   return s;
 }
 
+float Calibration::applyTemp(float rawTempC) const {
+  return rawTempC + params_.tempOffsetC;
+}
+
 bool Calibration::isDue(uint32_t nowUnix) const {
   if (params_.calibratedAt == 0) return true;
   return (nowUnix - params_.calibratedAt) > params_.validForDays * 86400UL;

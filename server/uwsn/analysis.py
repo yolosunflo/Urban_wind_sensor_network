@@ -14,8 +14,10 @@ class Analyzer:
     def hourly(self) -> pd.DataFrame:
         """Mean speed, max gust, vector-mean direction per sensor per hour."""
         d = self.usable().set_index("ts")
+        d.loc[(d["flags"] & 128) != 0, "temp_c"] = np.nan      # ignore faulty temperatures
         g = d.groupby("device_id").resample("1h")
-        out = g.agg(mean_speed_ms=("mean_speed_ms", "mean"), gust_ms=("gust_ms", "max"))
+        out = g.agg(mean_speed_ms=("mean_speed_ms", "mean"), gust_ms=("gust_ms", "max"),
+                    temp_c=("temp_c", "mean"))
         # TODO: direction via vector average (sin/cos), not arithmetic mean
         return out.reset_index()
 
@@ -27,6 +29,13 @@ class Analyzer:
         """Share of time below threshold per sensor: key indicator of poor ventilation."""
         d = self.usable()
         return d.groupby("device_id")["mean_speed_ms"].apply(lambda s: (s < threshold_ms).mean())
+
+    def wind_temperature_correlation(self) -> pd.Series:
+        """Correlation between wind speed and the node's own temperature, per sensor.
+        A negative value suggests wind brings cooler air (ventilation helps)."""
+        d = self.usable()
+        d = d[(d["flags"] & 128) == 0].dropna(subset=["temp_c"])
+        return d.groupby("device_id").apply(lambda g: g["mean_speed_ms"].corr(g["temp_c"]))
 
     def compare_with_temperature(self, temp_df: pd.DataFrame) -> pd.DataFrame:
         """TODO: join with urban temperature data, correlate wind vs temperature by street."""

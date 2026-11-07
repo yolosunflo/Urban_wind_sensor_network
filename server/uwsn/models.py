@@ -16,6 +16,7 @@ class QualityFlag(IntFlag):
     CALIBRATION_DUE = 1 << 4
     SENSOR_FAULT = 1 << 5
     FEW_SAMPLES = 1 << 6
+    TEMP_FAULT = 1 << 7          # temperature missing / implausible
     # server-only
     MISSING_BEFORE = 1 << 8      # gap in sequence numbers
     DRIFT_SUSPECTED = 1 << 9     # disagrees with reference station
@@ -23,7 +24,6 @@ class QualityFlag(IntFlag):
 
 @dataclass
 class SensorMeta:
-    """Description of one physical sensor"""
     device_id: str
     lat: float
     lon: float
@@ -61,3 +61,8 @@ class Measurement:
         bad = (QualityFlag.OUT_OF_RANGE | QualityFlag.STUCK |
                QualityFlag.SENSOR_FAULT | QualityFlag.DRIFT_SUSPECTED)
         return not (self.flags & bad)
+
+    @property
+    def has_valid_temp(self) -> bool:
+        """A temperature fault does not invalidate the wind data, only the temperature."""
+        return self.temp_c is not None and not (self.flags & QualityFlag.TEMP_FAULT)

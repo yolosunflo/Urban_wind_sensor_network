@@ -8,8 +8,7 @@ namespace uwsn {
 static uint16_t clampU16(float v) { return v < 0 ? 0 : (v > 65535.f ? 65535 : (uint16_t)lroundf(v)); }
 static uint8_t  clampU8 (float v) { return v < 0 ? 0 : (v > 255.f   ? 255   : (uint8_t) lroundf(v)); }
 
-UplinkFrame PayloadCodec::toFrame(const WindAggregate& a, uint16_t seq,
-                                  float batteryV, bool hasTemp, float tempC) {
+UplinkFrame PayloadCodec::toFrame(const WindAggregate& a, uint16_t seq, float batteryV) {
   UplinkFrame f{};
   f.version  = PAYLOAD_VERSION;
   f.seq      = seq;
@@ -17,7 +16,7 @@ UplinkFrame PayloadCodec::toFrame(const WindAggregate& a, uint16_t seq,
   f.gust     = clampU16(a.gust_ms      / SPEED_LSB_MS);
   f.meanDir  = clampU16(a.meanDir_deg  / DIR_LSB_DEG);
   f.stdSpeed = clampU8 (a.stdSpeed_ms  / STD_LSB_MS);
-  f.temp     = hasTemp ? (int16_t)lroundf(tempC / TEMP_LSB_C) : INT16_MIN;
+  f.temp     = a.hasTemp ? (int16_t)lroundf(a.meanTemp_c / TEMP_LSB_C) : INT16_MIN;
   f.battery  = clampU8 ((batteryV - BATTERY_OFFSET_V) / BATTERY_LSB_V);
   f.flags    = a.flags;
   return f;

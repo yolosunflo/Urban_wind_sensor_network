@@ -9,6 +9,7 @@ class Aggregator {
  public:
   void reset();
   void add(const WindSample& s);
+  void addTemp(float tempC);       // temperature is sampled less often than wind
   uint16_t count() const { return sample_count; }
   WindAggregate compute() const;   // TODO: 3-s gust (WMO) instead of max sample
 
@@ -19,6 +20,8 @@ class Aggregator {
   float maxSpeed_ = 0;
   // Vector average for direction (never average angles directly)
   float sumSin_ = 0, sumCos_ = 0;
+  // Temperature
+  float tSum_ = 0; uint16_t tN_ = 0, tBad_ = 0;
   // Stuck-sensor detection
   float lastSpeed_ = -1; uint16_t sameCount_ = 0; uint16_t maxSame_ = 0;
 };

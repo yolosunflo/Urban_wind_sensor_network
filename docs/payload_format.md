@@ -10,7 +10,7 @@
 | 9    | std speed   | uint8  | x 0.05 m/s                   |
 | 10-11| temperature | int16  | x 0.01 C, -32768 = n/a       |
 | 12   | battery     | uint8  | 2.00 V + 0.01 V x value      |
-| 13   | flags       | uint8  | bit0 range, 1 stuck, 2 spike, 3 low batt, 4 calib due, 5 fault, 6 few samples |
+| 13   | flags       | uint8  | bit0 range, 1 stuck, 2 spike, 3 low batt, 4 calib due, 5 fault, 6 few samples, 7 temperature fault |
 
 Why fixed-point integers: LoRaWAN payloads must stay tiny (airtime = battery),
 and floats would waste 4 bytes each. 0.01 m/s resolution keeps the

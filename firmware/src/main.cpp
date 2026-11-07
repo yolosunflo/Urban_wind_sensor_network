@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "config.h"
 #include "Anemometer.h"
+#include "TemperatureSensor.h"
 #include "Calibration.h"
 #include "Aggregator.h"
 #include "PayloadCodec.h"
@@ -10,6 +11,7 @@
 using namespace uwsn;
 
 static AnalogAnemometer sensor(PIN_SPEED_ADC, PIN_DIR_ADC, PIN_SENSOR_POWER);
+static AnalogTemperatureSensor tempSensor(PIN_TEMP_ADC);
 static Calibration      calib;
 static Aggregator       agg;
 static LoRaWANTransport radio;
@@ -19,6 +21,7 @@ static uint16_t         seq = 0;   // TODO: persist across resets
 void setup() {
   Serial.begin(115200);
   sensor.begin();
+  tempSensor.begin();
   power.begin();
   calib.load();
   radio.begin();
@@ -29,9 +32,14 @@ void loop() {
   agg.reset();
   sensor.powerOn();
   const uint32_t t0 = millis();
+  uint16_t k = 0;                     // sample counter
   while (millis() - t0 < BURST_S * 1000UL) {
     RawSample raw;
     if (sensor.read(raw)) agg.add(calib.apply(raw));
+    if (k++ % TEMP_SAMPLE_EVERY_N == 0) {      // temperature changes slowly: read less often
+      float t;
+      if (tempSensor.read(t)) agg.addTemp(calib.applyTemp(t));
+    }
     delay(SAMPLE_PERIOD_MS);          // TODO: light sleep instead of delay
   }
   sensor.powerOff();
@@ -44,7 +52,7 @@ void loop() {
 
   // 3. Encode + send
   uint8_t buf[UPLINK_SIZE];
-  UplinkFrame f = PayloadCodec::toFrame(a, seq++, vbat, false, 0.0f);
+  UplinkFrame f = PayloadCodec::toFrame(a, seq++, vbat);
   size_t n = PayloadCodec::encode(f, buf, sizeof(buf));
   if (n) radio.send(buf, n);
 
