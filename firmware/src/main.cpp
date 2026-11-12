@@ -12,10 +12,12 @@ using namespace uwsn;
 
 static AnalogAnemometer sensor(PIN_SPEED_ADC, PIN_DIR_ADC, PIN_SENSOR_POWER);
 static AnalogTemperatureSensor tempSensor(PIN_TEMP_ADC);
-static Calibration      calib;
-static Aggregator       agg;
 static LoRaWANTransport radio;
 static PowerManager     power;
+
+static Calibration      calib;
+static Aggregator       agg;
+
 static uint16_t         seq = 0;   // TODO: persist across resets
 
 void setup() {
@@ -50,11 +52,10 @@ void loop() {
   if (vbat < LOW_BATTERY_V) a.flags |= Q_LOW_BATTERY;
   // TODO: needs a real clock (RTC or network time) for calib.isDue(now)
 
-  // 3. Encode + send
+  // Encode + send
   uint8_t buf[UPLINK_SIZE];
   UplinkFrame f = PayloadCodec::toFrame(a, seq++, vbat);
-  size_t n = PayloadCodec::encode(f, buf, sizeof(buf));
-  if (n) radio.send(buf, n);
+  radio.send(buf, PayloadCodec::encode(f, buf));
 
   // 4. Handle downlink (new calibration / new interval)
   uint8_t dl[16]; size_t dlLen = 0;
