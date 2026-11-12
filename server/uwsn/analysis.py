@@ -8,7 +8,7 @@ class Analyzer:
         self.df = df
 
     def usable(self) -> pd.DataFrame:
-        bad_mask = 0b1000100111      # OUT_OF_RANGE|STUCK|SENSOR_FAULT|DRIFT (adapt to QualityFlag)
+        bad_mask = 0b1000100111      # SPIKE|OUT_OF_RANGE|STUCK|SENSOR_FAULT|DRIFT
         return self.df[(self.df["flags"] & bad_mask) == 0]
 
     def hourly(self) -> pd.DataFrame:

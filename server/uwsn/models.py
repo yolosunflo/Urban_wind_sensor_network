@@ -58,7 +58,7 @@ class Measurement:
 
     @property
     def is_usable(self) -> bool:
-        bad = (QualityFlag.OUT_OF_RANGE | QualityFlag.STUCK |
+        bad = (QualityFlag.SPIKE | QualityFlag.OUT_OF_RANGE | QualityFlag.STUCK |
                QualityFlag.SENSOR_FAULT | QualityFlag.DRIFT_SUSPECTED)
         return not (self.flags & bad)
 

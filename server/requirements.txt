@@ -1,3 +1,12 @@
+# List of outside libraries the server needs. >=1.6 means "version 1.6 or newer"
+# 
+# paho-mqtt: connects to TTN and receives the sensors' messages
+# pandas, numpy: classic python coding
+# streamlit: dashboard web page
+# plotly: interactive charts (zoom, hover) for the dashboard
+# 
+# Intall everythign with pip install -r requirements.txt
+
 paho-mqtt>=1.6
 pandas>=2.0
 numpy>=1.24
