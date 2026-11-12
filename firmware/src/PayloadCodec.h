@@ -5,7 +5,7 @@
 namespace uwsn {
 
 /**
- * Converts float aggregates <-> fixed-point frame <-> bytes (big-endian).
+ * @brief Converts float aggregates <-> fixed-point frame <-> bytes (big-endian).
  */
 class PayloadCodec {
 public:
