@@ -10,5 +10,5 @@
 paho-mqtt>=1.6
 pandas>=2.0
 numpy>=1.24
-streamlit>=1.30
-plotly>=5.18
+streamlit>=1.67
+plotly>=5.24
