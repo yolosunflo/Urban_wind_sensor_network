@@ -5,15 +5,15 @@ These define what the final product must do.
 | ID | Requirement | Target / specification | Priority |
 |---|---|---|---|
 | FUN-01 | Measure wind speed | 0.3–20 m/s minimum operating range | Must |
-| FUN-02 | Measure wind direction | Using the purchased wind vane | Must |
+| FUN-02 | Measure wind direction | 0-360°, can be incremented in relatively large forks (10-15°)| Must |
 | FUN-03 | Measure ambient temperature | -20°C to +60°C | Must |
-| FUN-04 | Record measurements | Store measurements with timestamps | Must |
+| FUN-04 | Record measurements | Store measurements with timestamps and device ID| Must |
 | FUN-05 | Data collection interval | Produce measurement records every 10 minutes | Must |
 | FUN-06 | Data processing | Calculate wind speed, direction and temperature from sensor readings | Must |
 | FUN-07 | Data cleaning | Detect and reject invalid measurements and sensor faults | Must |
 | FUN-08 | Calibration | Allow wind speed, direction and temperature measurements to be calibrated | Must |
 | FUN-09 | Autonomous operation | Operate without continuous human intervention | Must |
-| FUN-10 | Data retrieval | Provide a way to retrieve stored measurements | Must |
+| FUN-10 | Data retrieval | Data must be sent by LoraWan to a central gateway linked to a database | Must |
 
 # 2. Measurement and performance requirements
 
@@ -28,15 +28,12 @@ These define what the final product must do.
 | PER-07 | Temperature maximum | Operate at +60°C or above | Must |
 | PER-08 | Measurement repeatability | Repeated measurements under identical conditions must remain within an established tolerance | Must |
 | PER-09 | Measurement resolution | Define sufficiently small increments to support the required accuracy | Must |
-| PER-11 | Measurement drift | Accuracy must remain within specification between calibration intervals | Should |
-| PER-12 | Wind gust measurement | Record maximum wind speed during each 10-minute interval | Should |
+| PER-10 | Measurement drift | Accuracy must remain within specification between calibration intervals | Should |
+| PER-11 | Wind gust measurement | Record maximum wind speed during each 10-minute interval | Should |
 
 **Clarifications:**
 
-- The ±0.3 m/s wind-speed requirement should be defined as an absolute error over the entire operating range, or replaced with a combined absolute/relative accuracy specification if appropriate (Recommended 10%).
-- Your temperature sensor already has a stated accuracy of 0.2°C, which is sufficient for the system's ±0.5°C target, provided the installation does not introduce additional errors.
 - Distinguish the minimum wind speed that the rotor can physically start at from the minimum speed that can be measured accurately.
-- Wind direction should also have a defined operating range of 0–360° and a clear convention for reporting direction (direction from which the wind originates).
 
 # 3. Mechanical requirements
 
@@ -80,7 +77,7 @@ These define what the final product must do.
 | STR-02 | Installation | Installable using a ladder and standard tools | Must |
 | STR-03 | Mounting security | Must remain securely attached to the pole under expected environmental loads | Must |
 | STR-04 | Structural strength | Withstand operating wind loads and mechanical stresses | Must |
-| STR-05 | Survival wind speed | Define a maximum wind speed the device can withstand without damage | Must |
+| STR-05 | Survival wind speed | 25m/s (about 100km/h winds) | Must |
 | STR-06 | Maximum dimensions | Compatible with available installation space | Should |
 | STR-07 | Maximum weight | Compatible with the mounting structure and safe installation | Should |
 | STR-08 | Component accessibility | Internal components must be accessible for maintenance | Must |
@@ -94,7 +91,7 @@ These define what the final product must do.
 
 | ID | Requirement | Target / specification | Priority |
 |---|---|---|---|
-| ELE-01 | Rotation detection | Detect rotor rotation using a Hall-effect sensor and permanent magnet | Must |
+| ELE-01 | Rotation detection | Detect rotor rotation using a magnetic sensor | Must |
 | ELE-02 | Pulse detection | Reliably detect every magnet passage | Must |
 | ELE-03 | Pulse resolution | Sufficient to achieve the required wind-speed resolution | Must |
 | ELE-04 | Sensor positioning | Maintain a controlled magnet-to-sensor distance | Must |
@@ -109,7 +106,7 @@ These define what the final product must do.
 |---|---|---|---|
 | ELE-09 | Microcontroller | Suitable for pulse timing, sensor acquisition and data processing | Must |
 | ELE-10 | Timer resolution | Sufficient for accurate pulse-period measurement | Must |
-| ELE-11 | Operating voltage | Compatible with all sensors and power components | Must |
+| ELE-11 | Operating voltage | Preferably 3.3v, or 5V | Must |
 | ELE-12 | Power consumption | Minimise average consumption to achieve battery autonomy | Must |
 | ELE-13 | Electrical protection | Protect against ESD, voltage transients and incorrect connections | Should |
 | ELE-14 | Temperature compatibility | Electronics must operate from -20°C to +60°C | Must |
@@ -176,8 +173,8 @@ These define what the final product must do.
 
 | ID | Requirement | Target / specification | Priority |
 |---|---|---|---|
-| TES-01 | Reference instrument | Use an available ultrasonic anemometer as the reference | Must |
-| TES-02 | Fan testing | Use a controlled fan setup to compare measurements | Must |
+| TES-01 | Reference instrument | Use an available ultrasonic anemometer as the reference | Should |
+| TES-02 | Fan testing | Use a controlled fan setup to compare measurements | Should |
 | TES-03 | Wind-speed calibration | Establish the relationship between rotor frequency and reference wind speed | Must |
 | TES-04 | Wind-direction calibration | Compare wind-vane output against known angular positions | Must |
 | TES-05 | Temperature calibration | Compare temperature readings against a suitable reference thermometer | Must |
