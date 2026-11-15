@@ -36,8 +36,8 @@ struct WindAggregate {
   float    gust_ms;
   float    meanDir_deg;
   float    stdSpeed_ms;
-  float    meanTemp_c;   // valid only if hasTemp
   bool     hasTemp;
+  float    meanTemp_c;   // valid only if hasTemp
   uint16_t nSamples;
   uint8_t  flags;        // QualityFlag bitmask
 };

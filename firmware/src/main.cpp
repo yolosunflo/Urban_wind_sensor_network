@@ -30,7 +30,7 @@ void setup() {
 }
 
 void loop() {
-  // 1. Sampling burst
+  // Sampling burst
   agg.reset();
   sensor.powerOn();
   const uint32_t t0 = millis();
@@ -47,15 +47,16 @@ void loop() {
   sensor.powerOff();
 
   // 2. Aggregate + flag quality
-  WindAggregate a = agg.compute();
+  WindAggregate wind_agg = agg.compute();
   const float vbat = power.readBatteryV();
-  if (vbat < LOW_BATTERY_V) a.flags |= Q_LOW_BATTERY;
+  if (vbat < LOW_BATTERY_V) wind_agg.flags |= Q_LOW_BATTERY;
   // TODO: needs a real clock (RTC or network time) for calib.isDue(now)
 
   // Encode + send
   uint8_t buf[UPLINK_SIZE];
-  UplinkFrame f = PayloadCodec::toFrame(a, seq++, vbat);
-  radio.send(buf, PayloadCodec::encode(f, buf));
+  UplinkFrame frame = PayloadCodec::toFrame(wind_agg, seq++, vbat);
+  size_t encoded_message = PayloadCodec::encode(frame, buf);
+  radio.send(buf, encoded_message); // TODO
 
   // 4. Handle downlink (new calibration / new interval)
   uint8_t dl[16]; size_t dlLen = 0;
