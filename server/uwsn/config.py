@@ -21,6 +21,7 @@ class Settings:
     battery_offset_v: float = 2.0
     battery_lsb_v: float = 0.01
 
+    # Validation thresholds
     window_s: int = 600            # expected interval between uplinks
     max_speed_ms: float = 60.0
     max_jump_ms: float = 15.0      # spike threshold between consecutive windows
@@ -30,6 +31,5 @@ class Settings:
     stuck_windows: int = 6         # identical values -> sensor stuck
     low_battery_v: float = 3.3
     recalibration_days: int = 180
-
 
 SETTINGS = Settings()

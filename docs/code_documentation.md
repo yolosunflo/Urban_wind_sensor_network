@@ -62,24 +62,12 @@ It keeps *running sums* instead of storing all the samples, which saves RAM.
 
 ## 3. Server (Python), folder `server/`
 
-### `uwsn/config.py`: settings
-- **`Settings`** (dataclass): TTN connection info (read from environment variables so the secret key never goes into git), database path, payload scaling (must match the firmware), and validation thresholds (max speed, spike size, stuck windows, low battery, recalibration period).
-- **`SETTINGS`**: the single instance used everywhere.
+**`uwsn/config.py`**: settings. TTN connection info, database path, payload scaling, validation thresholds.
 
-### `uwsn/models.py`: the data structures
-- **`QualityFlag`**: same bits as the firmware, plus two server-only ones (`MISSING_BEFORE`: packets lost before this one; `DRIFT_SUSPECTED`: disagrees with a reference station).
-- **`SensorMeta`**: description of one physical sensor (id, latitude, longitude, installation height, site description, installation date). Needed to put sensors on a map.
-- **`Uplink`**: a raw message as received (device id, reception time, bytes, signal strength RSSI and SNR).
-- **`Measurement`**: one decoded 10-minute window in physical units. Property `is_usable` is true if no serious flag is set.
+**`uwsn/models.py`**: the data structures
 
-### `uwsn/ingestion.py`: receiving the data (the "entry door")
-- **`Ingestor`** (abstract class): contract with `start(callback)` and `stop()`. The callback is the function called for every new message.
-- **`TTNMqttIngestor`**: connects to TTN over MQTT, subscribes to the uplinks of our application, extracts the bytes and metadata from the JSON, and calls the callback with an `Uplink`.
-  - `start()`: connect and listen forever.
-  - `stop()`: disconnect.
-  - `_on_connect()`: subscribe to the topic once connected.
-  - `_on_message()`: runs for each incoming message; decodes the base64 payload.
-  This is the only file that knows TTN exists. If we change network, only this class is replaced.
+**`uwsn/ingestion.py`**: receiving the data (the "entry door"). Our nodes send over LoRaWAN to our gateway, which forwards to TTN; TTN publishes each uplink as JSON on its MQTT broker.
+This is the only file that knows TTN's message format.
 
 ### `uwsn/decoder.py`: bytes to numbers
 - **`PayloadDecoder`**:

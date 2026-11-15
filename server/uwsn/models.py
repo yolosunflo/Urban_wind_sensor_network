@@ -7,7 +7,7 @@ from typing import Optional
 
 
 class QualityFlag(IntFlag):
-    """Bits 0-6 mirror the firmware flags, bits 8+ are added by the server."""
+    """Bits 0-7 mirror the firmware flags, bits 8+ are added by the server."""
     OK = 0
     OUT_OF_RANGE = 1 << 0
     STUCK = 1 << 1
@@ -16,9 +16,10 @@ class QualityFlag(IntFlag):
     CALIBRATION_DUE = 1 << 4
     SENSOR_FAULT = 1 << 5
     FEW_SAMPLES = 1 << 6
-    TEMP_FAULT = 1 << 7          # temperature missing / implausible
+    TEMP_FAULT = 1 << 7
+    
     # server-only
-    MISSING_BEFORE = 1 << 8      # gap in sequence numbers
+    MISSING_BEFORE = 1 << 8      # packets lost before this one
     DRIFT_SUSPECTED = 1 << 9     # disagrees with reference station
 
 
@@ -44,7 +45,7 @@ class Uplink:
 
 @dataclass
 class Measurement:
-    """One decoded 10-minute window, in physical units."""
+    """One decoded window, in physical units."""
     device_id: str
     ts: datetime
     seq: int
@@ -58,6 +59,7 @@ class Measurement:
 
     @property
     def is_usable(self) -> bool:
+        """True if no serious flag is set"""
         bad = (QualityFlag.SPIKE | QualityFlag.OUT_OF_RANGE | QualityFlag.STUCK |
                QualityFlag.SENSOR_FAULT | QualityFlag.DRIFT_SUSPECTED)
         return not (self.flags & bad)

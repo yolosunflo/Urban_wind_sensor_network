@@ -13,7 +13,7 @@ enum QualityFlag : uint8_t {
   Q_CALIBRATION_DUE  = 1 << 4, // not used
   Q_SENSOR_FAULT     = 1 << 5, // not used
   Q_FEW_SAMPLES      = 1 << 6,
-  Q_TEMP_FAULT       = 1 << 7,   // temperature missing or implausible
+  Q_TEMP_FAULT       = 1 << 7,
 };
 
 struct RawSample {
