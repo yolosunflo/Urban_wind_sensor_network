@@ -3,33 +3,52 @@
 
 namespace uwsn {
 
-bool Calibration::load() { /* TODO */ return true; }
-bool Calibration::save() const { /* TODO */ return true; }
+// Base class
 
-WindSample Calibration::apply(const RawSample& r) const {
-  const float full = (1 << ADC_BITS) - 1;
+float Calibration::applyTemp(float rawTempC) const {
+  return rawTempC + common().tempOffsetC;
+}
+
+float Calibration::correctDirection(float rawDeg) const {
+  float dir = rawDeg + common().dirOffsetDeg;
+  while (dir >= 360.0f) dir -= 360.0f;
+  while (dir < 0.0f)    dir += 360.0f;
+  return dir;
+}
+
+
+// Analog anemometer
+
+WindSample AnalogCalibration::apply(const RawSample& r) const {
+  // ADC counts to volts
+  const float full   = (1 << ADC_BITS) - 1;
   const float vSpeed = r.speedAdc * ADC_VREF / full;
   const float vDir   = r.dirAdc   * ADC_VREF / full;
 
-  WindSample s;
+  WindSample s{};
   s.speed_ms = (vSpeed - params_.speedOffsetV) * params_.speedGain;
-  if (s.speed_ms < 0) s.speed_ms = 0;
-  // Potentiometer vane: 0..Vref maps to 0..360 deg (TODO: check real sensor)
-  float dir = vDir / ADC_VREF * 360.0f + params_.dirOffsetDeg;
-  while (dir >= 360.0f) dir -= 360.0f;
-  while (dir < 0.0f)    dir += 360.0f;
-  s.dir_deg = dir;
-  s.tMs = r.tMs;
+  if (s.speed_ms < 0) s.speed_ms = 0;         // noise below the offset
+  s.dir_deg = correctDirection(vDir / ADC_VREF * 360.0f);
   return s;
 }
 
-float Calibration::applyTemp(float rawTempC) const {
-  return rawTempC + params_.tempOffsetC;
-}
 
-bool Calibration::isDue(uint32_t nowUnix) const {
-  if (params_.calibratedAt == 0) return true;
-  return (nowUnix - params_.calibratedAt) > params_.validForDays * 86400UL;
+// Our own anemometer (pulses + AS5600)
+
+WindSample PulseCalibration::apply(const RawSample& r) const {
+  WindSample s{};
+
+  // Speed: pulses counted during dtMs -> frequency -> m/s.
+  if (r.pulses == 0 || r.dtMs == 0) s.speed_ms = 0.0f;
+  else {
+    const float freqHz = r.pulses * 1000.0f / r.dtMs;
+    s.speed_ms = params_.speedGain * freqHz + params_.speedOffset_ms;
+    if (s.speed_ms < 0) s.speed_ms = 0;
+  }
+
+  // Direction: AS5600 gives 0..4095 for one full turn.
+  s.dir_deg = correctDirection(r.angleRaw * 360.0f / params_.angleCountsPerTurn);
+  return s;
 }
 
 }  // namespace uwsn

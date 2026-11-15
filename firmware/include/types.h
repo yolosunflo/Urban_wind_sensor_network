@@ -8,19 +8,20 @@ enum QualityFlag : uint8_t {
   Q_OK               = 0,
   Q_OUT_OF_RANGE     = 1 << 0,
   Q_STUCK            = 1 << 1,
-  Q_SPIKE            = 1 << 2,
+  Q_SPIKE            = 1 << 2, // not used
   Q_LOW_BATTERY      = 1 << 3,
-  Q_CALIBRATION_DUE  = 1 << 4,
-  Q_SENSOR_FAULT     = 1 << 5,
+  Q_CALIBRATION_DUE  = 1 << 4, // not used
+  Q_SENSOR_FAULT     = 1 << 5, // not used
   Q_FEW_SAMPLES      = 1 << 6,
   Q_TEMP_FAULT       = 1 << 7,   // temperature missing or implausible
 };
 
-// Raw ADC counts, straight from the anemometer (no physics yet).
 struct RawSample {
-  uint16_t speedAdc;
-  uint16_t dirAdc;
-  uint32_t tMs;
+  uint16_t speedAdc;   // analog anemometer: ADC count of the speed output
+  uint16_t dirAdc;     // analog anemometer: ADC count of the vane output
+  uint16_t pulses;     // pulse anemometer: pulses counted since the previous sample
+  uint16_t dtMs;       // pulse anemometer: time covered by those pulses
+  uint16_t angleRaw;   // AS5600 angle, 0..4095
 };
 
 // Physical values after calibration (float is fine inside the MCU).
@@ -37,9 +38,9 @@ struct WindAggregate {
   float    meanDir_deg;
   float    stdSpeed_ms;
   bool     hasTemp;
-  float    meanTemp_c;   // valid only if hasTemp
+  float    meanTemp_c;
   uint16_t nSamples;
-  uint8_t  flags;        // QualityFlag bitmask
+  uint8_t  flags;
 };
 
 // What goes over the air: fixed-point integers only.

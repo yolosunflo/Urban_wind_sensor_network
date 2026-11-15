@@ -13,12 +13,12 @@ using namespace uwsn;
 static AnalogAnemometer sensor(PIN_SPEED_ADC, PIN_DIR_ADC, PIN_SENSOR_POWER);
 static AnalogTemperatureSensor tempSensor(PIN_TEMP_ADC);
 static LoRaWANTransport radio;
-static PowerManager     power;
+static PowerManager power;
 
-static Calibration      calib;
-static Aggregator       agg;
+static PulseCalibration calib;
+static Aggregator agg;
 
-static uint16_t         seq = 0;   // TODO: persist across resets
+static uint16_t seq = 0;   // TODO: persist across resets
 
 void setup() {
   Serial.begin(115200);
@@ -34,27 +34,26 @@ void loop() {
   agg.reset();
   sensor.powerOn();
   const uint32_t t0 = millis();
-  uint16_t k = 0;                     // sample counter
+  uint16_t sample_count = 0;                     // sample counter
   while (millis() - t0 < BURST_S * 1000UL) {
     RawSample raw;
     if (sensor.read(raw)) agg.add(calib.apply(raw));
-    if (k++ % TEMP_SAMPLE_EVERY_N == 0) {      // temperature changes slowly: read less often
+    if (sample_count++ % TEMP_SAMPLE_EVERY_N == 0) {      // temperature changes slowly: read less often
       float t;
       if (tempSensor.read(t)) agg.addTemp(calib.applyTemp(t));
     }
-    delay(SAMPLE_PERIOD_MS);          // TODO: light sleep instead of delay
+    delay(SAMPLE_PERIOD_MS);
   }
   sensor.powerOff();
 
-  // 2. Aggregate + flag quality
+  // Aggregate + flag quality
   WindAggregate wind_agg = agg.compute();
-  const float vbat = power.readBatteryV();
-  if (vbat < LOW_BATTERY_V) wind_agg.flags |= Q_LOW_BATTERY;
+  if (power.isLow()) wind_agg.flags |= Q_LOW_BATTERY;
   // TODO: needs a real clock (RTC or network time) for calib.isDue(now)
 
   // Encode + send
   uint8_t buf[UPLINK_SIZE];
-  UplinkFrame frame = PayloadCodec::toFrame(wind_agg, seq++, vbat);
+  UplinkFrame frame = PayloadCodec::toFrame(wind_agg, seq++, power.readBatteryV());
   size_t encoded_message = PayloadCodec::encode(frame, buf);
   radio.send(buf, encoded_message); // TODO
 
