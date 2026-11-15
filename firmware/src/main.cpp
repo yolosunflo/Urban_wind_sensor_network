@@ -19,7 +19,7 @@ static PulseAnemometer   sensor(PIN_REED, PIN_ANEMO_POWER);
 static PulseCalibration  calib;
 #endif
 
-static AnalogTemperatureSensor tempSensor(PIN_TEMP_ADC);
+static TemperatureSensor tempSensor();
 static LoRaWANTransport radio;
 static PowerManager power;
 
@@ -32,7 +32,6 @@ void setup() {
   sensor.begin();
   tempSensor.begin();
   power.begin();
-  calib.load();
   radio.begin();
 }
 

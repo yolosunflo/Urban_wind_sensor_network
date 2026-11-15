@@ -47,11 +47,9 @@
 #define BATTERY_OFFSET_V   2.0f
 #define BATTERY_LSB_V      0.01f   // uint8  -> 2.00 .. 4.55 V
 
-// ---- Temperature sensor (basic linear analog, TMP36-like defaults) ----
-// TODO: replace with the values of the real sensor datasheet.
-#define PIN_TEMP_ADC          33
+// ---- Temperature sensor (SparkFun SEN-13314 = TI TMP102, I2C) ----
+#define TEMP_I2C_ADDR         0x48    // ADD0 on GND (0x49 = VCC, 0x4A = SDA, 0x4B = SCL)
+#define TEMP_CONVERSION_MS    35      // one-shot conversion time (datasheet max)
 #define TEMP_SAMPLE_EVERY_N   10      // read temperature every N wind samples (it changes slowly)
-#define TEMP_V_AT_0C          0.5f    // sensor output voltage at 0 C
-#define TEMP_V_PER_C          0.010f  // volts per degree C
 #define TEMP_MIN_C           -20.0f   // plausible range (outside = sensor fault)
 #define TEMP_MAX_C            60.0f
