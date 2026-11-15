@@ -17,7 +17,10 @@ UplinkFrame PayloadCodec::toFrame(const WindAggregate& a, uint16_t seq, float ba
   f.seq      = seq;
   f.meanSpeed= clampU16(a.meanSpeed_ms / SPEED_LSB_MS);
   f.gust     = clampU16(a.gust_ms      / SPEED_LSB_MS);
-  f.meanDir  = clampU16(a.meanDir_deg  / DIR_LSB_DEG);
+  uint16_t dir = clampU16(a.meanDir_deg / DIR_LSB_DEG);
+  const uint16_t fullTurn = (uint16_t)lroundf(360.0f / DIR_LSB_DEG);   // 3600
+  if (dir >= fullTurn) dir -= fullTurn;   // 359.96 deg rounds to 360.0 -> send 0.0
+  f.meanDir = dir;
   f.stdSpeed = clampU8 (a.stdSpeed_ms  / STD_LSB_MS);
   f.temp     = a.hasTemp ? (int16_t)lroundf(a.meanTemp_c / TEMP_LSB_C) : INT16_MIN;
   f.battery  = clampU8 ((batteryV - BATTERY_OFFSET_V) / BATTERY_LSB_V);

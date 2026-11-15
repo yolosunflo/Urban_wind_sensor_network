@@ -10,6 +10,6 @@ float PowerManager::readBatteryV() const { return 4.f; }
 
 bool PowerManager::isLow() const { return readBatteryV() < LOW_BATTERY_V; }
 
-void PowerManager::deepSleep(uint32_t ms) { // TODO
+void PowerManager::deepSleep(uint32_t ms) {}
 
 }  // namespace uwsn

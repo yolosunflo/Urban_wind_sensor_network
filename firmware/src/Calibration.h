@@ -51,9 +51,6 @@ class Calibration {
    * @returns the corrected direction in degrees
    */
   float correctDirection(float rawDeg) const;
-
- private:
-  CommonCalibParams params_;
 };
 
 

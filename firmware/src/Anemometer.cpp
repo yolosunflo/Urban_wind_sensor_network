@@ -2,35 +2,6 @@
 #include "config.h"
 #include <Arduino.h>
 
-namespace uwsn {
-
-AnalogAnemometer::AnalogAnemometer(int s, int d, int p)
-    : speedPin_(s), dirPin_(d), powerPin_(p) {}
-
-bool AnalogAnemometer::begin() {
-  pinMode(powerPin_, OUTPUT);
-  analogReadResolution(ADC_BITS);
-  return true;
-}
-
-void AnalogAnemometer::powerOn()  { digitalWrite(powerPin_, HIGH); delay(SENSOR_WARMUP_MS); }
-void AnalogAnemometer::powerOff() { digitalWrite(powerPin_, LOW); }
-
-bool AnalogAnemometer::read(RawSample& out) {
-  out.speedAdc = analogRead(speedPin_);
-  out.dirAdc   = analogRead(dirPin_);
-  out.tMs      = millis();
-  // TODO: detect disconnected sensor (ADC stuck at 0 or full scale) -> return false
-  return true;
-}
-
-}  // namespace uwsn
-
-
-#include "Anemometer.h"
-#include "config.h"
-#include <Arduino.h>
-
 #ifndef IRAM_ATTR          // ESP32 needs ISRs in RAM, other boards (STM32WL) ignore it
 #define IRAM_ATTR
 #endif
@@ -73,11 +44,10 @@ bool AnalogAnemometer::read(RawSample& out) {
   out.speedAdc = readAveraged(speedPin_);
   out.dirAdc   = readAveraged(dirPin_);
 
-  // Stuck at full scale = open wire or sensor not powered.
-  // (0 is not checked: it is a valid value, 0 m/s or vane pointing at 0 deg.)
+  // Speed stuck at full scale = open wire or sensor unpowered (that speed is impossible).
+  // The direction can't be checked: every value 0..full is a valid angle.
   const uint16_t full = (1 << ADC_BITS) - 1;
   if (out.speedAdc >= full - ANEMO_ADC_RAIL_MARGIN) return false;
-  if (out.dirAdc   >= full - ANEMO_ADC_RAIL_MARGIN) return false;
   return true;
 }
 
