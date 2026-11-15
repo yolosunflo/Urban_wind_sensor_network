@@ -10,12 +10,19 @@
 
 using namespace uwsn;
 
-static AnalogAnemometer sensor(PIN_SPEED_ADC, PIN_DIR_ADC, PIN_SENSOR_POWER);
+// Anemometer driver and its calibration always go in pairs (see ANEMOMETER_TYPE in config.h)
+#if ANEMOMETER_TYPE == ANEMO_ANALOG
+static AnalogAnemometer  sensor(PIN_SPEED_ADC, PIN_DIR_ADC, PIN_SENSOR_POWER);
+static AnalogCalibration calib;
+#elif ANEMOMETER_TYPE == ANEMO_PULSE
+static PulseAnemometer   sensor(PIN_REED, PIN_ANEMO_POWER);
+static PulseCalibration  calib;
+#endif
+
 static AnalogTemperatureSensor tempSensor(PIN_TEMP_ADC);
 static LoRaWANTransport radio;
 static PowerManager power;
 
-static PulseCalibration calib;
 static Aggregator agg;
 
 static uint16_t seq = 0;   // TODO: persist across resets
