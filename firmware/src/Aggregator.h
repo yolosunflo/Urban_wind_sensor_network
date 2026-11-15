@@ -40,6 +40,7 @@ class Aggregator {
 
   /**
    * @brief Create the final wind aggregate from the data accumulated
+   * Sets the quality flags
    * 
    * Called only once at the end of the receiving window
    */

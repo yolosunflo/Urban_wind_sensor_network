@@ -6,7 +6,6 @@ namespace uwsn {
 
 // Maximum nb of identical values (stuck)
 #define SAME_VAL_DETECT 300 // TODO tdb
-#define TO_MS 1000UL
 #define EXP_SAMPLE 0.8f // expect 80% of good samples
 
 /**
@@ -55,7 +54,7 @@ WindAggregate Aggregator::compute() const {
   a.nSamples = sample_count;
 
   a.flags = Q_OK;
-  if (sample_count < (BURST_S * TO_MS / SAMPLE_PERIOD_MS) * EXP_SAMPLE) a.flags |= Q_FEW_SAMPLES;
+  if (sample_count < (BURST_S * 1000UL / SAMPLE_PERIOD_MS) * EXP_SAMPLE) a.flags |= Q_FEW_SAMPLES;
   if (maxSpeed_ > SPEED_MAX_MS) a.flags |= Q_OUT_OF_RANGE;
   if (sameCount_ > SAME_VAL_DETECT) a.flags |= Q_STUCK;
 

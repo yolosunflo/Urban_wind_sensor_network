@@ -19,7 +19,7 @@ class PowerManager {
    * @brief Measure the battery voltage
    * @returns the current voltage of the battery
    * 
-   * @note depends on our architecture : BATTERY_DIVIDER = (R1 + R2) / R2
+   * TODO: implementation depends on hardware, dummy value for now
    */
   float readBatteryV() const;
 
