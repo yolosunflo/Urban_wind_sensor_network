@@ -21,8 +21,8 @@
 
 // ---- Sampling / aggregation ----
 #define SAMPLE_PERIOD_MS   1000   // internal sampling at 1 Hz
-#define WINDOW_S           300    // one uplink per 5 minutes
-#define BURST_S            600    // how long we actually sample inside a window (< WINDOW_S to save battery)
+#define WINDOW_S           600    // one uplink per 10 minutes
+#define BURST_S            300    // how long we actually sample inside a window (< WINDOW_S to save battery)
 #define SENSOR_WARMUP_MS   2000   // analog anemometer warm-up after power-on
 
 // ---- Analog anemometer ----
@@ -53,3 +53,9 @@
 #define TEMP_SAMPLE_EVERY_N   10      // read temperature every N wind samples (it changes slowly)
 #define TEMP_MIN_C           -20.0f   // plausible range (outside = sensor fault)
 #define TEMP_MAX_C            60.0f
+
+// ---- Stuck-sensor detection (TBD: tune with field data) ----
+#define STUCK_MIN_SPEED_MS   1.0f   // above this speed the vane always moves a little
+#define STUCK_DIR_TOL_DEG    1.0f   // smaller change = vane did not move
+#define STUCK_VANE_N         120    // windy samples in a row with a frozen vane -> vane stuck
+#define STUCK_CUPS_MOVES     60     // vane moved this often in a window with 0 m/s the whole time -> cups/reed stuck

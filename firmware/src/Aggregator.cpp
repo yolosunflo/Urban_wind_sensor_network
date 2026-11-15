@@ -4,8 +4,6 @@
 
 namespace uwsn {
 
-// Maximum nb of identical values (stuck)
-#define SAME_VAL_DETECT 300 // TODO tdb
 #define EXP_SAMPLE 0.8f // expect 80% of good samples
 
 /**
@@ -17,7 +15,6 @@ static float deg_to_rad(float x) {return x * (float)M_PI / 180.0f;}
 void Aggregator::reset() { *this = Aggregator(); }
 
 void Aggregator::addTemp(float tempC) {
-  if (tempC < TEMP_MIN_C || tempC > TEMP_MAX_C) {tBad_++; return;}
   tSum_ += tempC;
   tGood_++;
 }
@@ -33,8 +30,15 @@ void Aggregator::add(const WindSample& s) {
   sumSin_ += sinf(rad);
   sumCos_ += cosf(rad);
 
-  sameCount_ = s.speed_ms == lastSpeed_ ? sameCount_++ : 0;
-  lastSpeed_ = s.speed_ms;
+  // Stuck detection: the cups (speed) and the vane (angle) check each other
+  if (lastDir_ >= 0) {
+    float dDir = fabsf(s.dir_deg - lastDir_);
+    if (dDir > 180.0f) dDir = 360.0f - dDir;   // 359 -> 1 deg is a 2 deg move, not 358
+    if (dDir > STUCK_DIR_TOL_DEG) { vaneMoves_++; vaneStill_ = 0; }
+    else if (s.speed_ms > STUCK_MIN_SPEED_MS) vaneStill_++;
+    // calm + vane still is normal: leave the counter as it is
+  }
+  lastDir_ = s.dir_deg;
 }
 
 WindAggregate Aggregator::compute() const {
@@ -47,16 +51,17 @@ WindAggregate Aggregator::compute() const {
 
   a.stdSpeed_ms = (sample_count > 1) ? sqrtf(m2_ / (sample_count - 1)) : 0.0f;
 
-  a.hasTemp = (tGood_ > 0);
-  a.meanTemp_c = a.hasTemp ? tSum_ / tGood_ : 0.0f;
-  if (!a.hasTemp || tBad_ > tGood_) a.flags |= Q_TEMP_FAULT;
-
   a.nSamples = sample_count;
 
   a.flags = Q_OK;
   if (sample_count < (BURST_S * 1000UL / SAMPLE_PERIOD_MS) * EXP_SAMPLE) a.flags |= Q_FEW_SAMPLES;
   if (maxSpeed_ > SPEED_MAX_MS) a.flags |= Q_OUT_OF_RANGE;
-  if (sameCount_ > SAME_VAL_DETECT) a.flags |= Q_STUCK;
+  if (vaneStill_ > STUCK_VANE_N) a.flags |= Q_STUCK;                       // wind, but the vane is frozen
+  if (maxSpeed_ == 0.0f && vaneMoves_ > STUCK_CUPS_MOVES) a.flags |= Q_STUCK; // vane moves, but not one pulse
+
+  a.hasTemp = (tGood_ > 0);
+  a.meanTemp_c = a.hasTemp ? tSum_ / tGood_ : 0.0f;
+  if (!a.hasTemp || tBad_ > tGood_) a.flags |= Q_TEMP_FAULT;
 
   return a;
 }

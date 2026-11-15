@@ -19,7 +19,7 @@ static PulseAnemometer   sensor(PIN_REED, PIN_ANEMO_POWER);
 static PulseCalibration  calib;
 #endif
 
-static TemperatureSensor tempSensor();
+static TemperatureSensor tempSensor;
 static LoRaWANTransport radio;
 static PowerManager power;
 
@@ -44,9 +44,10 @@ void loop() {
   while (millis() - t0 < BURST_S * 1000UL) {
     RawSample raw;
     if (sensor.read(raw)) agg.add(calib.apply(raw));
-    if (sample_count++ % TEMP_SAMPLE_EVERY_N == 0) {      // temperature changes slowly: read less often
-      float t;
-      if (tempSensor.read(t)) agg.addTemp(calib.applyTemp(t));
+    if (sample_count++ % TEMP_SAMPLE_EVERY_N == 0) {   // temperature changes slowly: read less often
+    float t;
+    if (tempSensor.read(t)) agg.addTemp(calib.applyTemp(t));
+    else agg.addTempFault();
     }
     delay(SAMPLE_PERIOD_MS);
   }

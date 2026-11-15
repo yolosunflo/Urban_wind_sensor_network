@@ -17,20 +17,19 @@ class Aggregator {
 
   /**
    * @brief Add one sample to the current data
-   * @param s the sample to add
-   * 
    * Updates all the variables of the class
    */
   void add(const WindSample& s);
 
   /**
-   * @brief add a temperature data to the accumulated data.
-   * @param tempC the temperature to add
-   * 
-   * It rejects implausible values
-   * Temperature is sampled less often than wind
+   * @brief Adds one valid temperature reading (already checked by TemperatureSensor)
    */
   void addTemp(float tempC);
+
+  /**
+   * @brief Counts one failed temperature reading (implausible value or no answer)
+   */
+  void addTempFault() { tBad_++; }
 
   /**
    * @brief Gives the number of samples in the current accumulated data
@@ -52,7 +51,12 @@ class Aggregator {
   float maxSpeed_ = 0, tSum_ = 0;
   float sumSin_ = 0, sumCos_ = 0;                  // Vector average for direction
   uint16_t tGood_ = 0, tBad_ = 0;                  // nb of good/bad temperature data
-  float lastSpeed_ = -1; uint16_t sameCount_ = 0;  // Stuck-sensor detection
+  
+  // Stuck sensor detection
+  float lastDir_ = -1;        // previous direction, -1 = no sample yet
+  uint16_t vaneStill_ = 0;    // windy samples in a row where the vane did not move
+  uint16_t vaneMoves_ = 0;    // samples in this window where the vane moved
+  
 };
 
 }  // namespace uwsn
