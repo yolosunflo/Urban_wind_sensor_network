@@ -116,9 +116,9 @@ The mechanical team must calculate and document the following parameters before 
 
 **Critical design criterion:**
 
-\[
+$$
 T_{\text{bearing,start}} < T_{\text{aerodynamic}}(0.3\text{ m/s})
-\]
+$$
 
 The design must include an appropriate engineering margin. The mechanical team must determine the available aerodynamic torque using the selected rotor geometry and verify the bearing starting torque experimentally.
 
