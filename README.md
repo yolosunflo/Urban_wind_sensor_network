@@ -6,7 +6,7 @@
 
 Data flow:
 anemometer (analog) -> ADC -> Calibration -> Aggregator (10 min) -> PayloadCodec
--> LoRa -> gateway -> TTN -> Ingestor -> Decoder -> Validator -> Repository -> Analyzer -> Dashboard / Export
+-> LoRa -> gateway -> TTN -> MQTT -> Ingestor -> Decoder -> Validator -> Repository -> Analyzer -> Dashboard / Export
 
 All files contain TODOs where real hardware or decisions are needed.
 

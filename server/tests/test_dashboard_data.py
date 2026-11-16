@@ -82,7 +82,7 @@ def test_sensor_summary_and_missing_sensor_metadata():
 
 
 def test_export_frame():
-    out = data.export_frame(frame([("a", 0, 1, int(QualityFlag.STUCK), 5)]))
+    out = Data.export_frame(frame([("a", 0, 1, int(QualityFlag.STUCK), 5)]))
     assert not out.loc[0, "usable"] and out.loc[0, "flags_text"] == "Stuck"
     assert isinstance(out.loc[0, "ts"], str)
 

@@ -12,6 +12,12 @@ class PayloadDecoder:
     SUPPORTED_VERSIONS = {1}
 
     def decode(self, up: Uplink) -> Measurement:
+        """
+        Unpacks the 14 bytes, checks the length and payload version, and applies the 
+        scaling to produce a Measurement. 
+        
+        Raises an error if the message is malformed.
+        """
         if len(up.payload) < _SIZE:
             raise ValueError(f"payload too short: {len(up.payload)} bytes")
         (ver, seq, mean, gust, direction,
@@ -20,7 +26,7 @@ class PayloadDecoder:
             raise ValueError(f"unsupported payload version {ver}")
         return Measurement(
             device_id=up.device_id,
-            ts=up.received_at,       # TODO: subtract airtime/window offset if needed
+            ts=up.received_at,
             seq=seq,
             mean_speed_ms=mean * S.speed_lsb_ms,
             gust_ms=gust * S.speed_lsb_ms,

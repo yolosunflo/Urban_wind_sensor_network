@@ -2,6 +2,7 @@
 import numpy as np
 import pandas as pd
 from .models import QualityFlag, UNUSABLE_WIND_MASK
+from .config import SETTINGS
 
 
 def vector_mean_direction(speed: pd.Series, direction_deg: pd.Series) -> float:
@@ -86,7 +87,7 @@ class Analyzer:
         d = d[(d["flags"] & QualityFlag.TEMP_FAULT) == 0].dropna(subset=["temp_c"])
         return d.groupby("device_id").apply(lambda g: g["mean_speed_ms"].corr(g["temp_c"]))
 
-    def availability(self, window_s: int = 600) -> pd.Series:
+    def availability(self, window_s: int = SETTINGS.window_s) -> pd.Series:
         """Received / expected windows per sensor (network health), between 0 and 1.
 
         Expected windows run from the sensor's first message to the LAST message of any sensor

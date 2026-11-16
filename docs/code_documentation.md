@@ -69,48 +69,22 @@ It keeps *running sums* instead of storing all the samples, which saves RAM.
 **`uwsn/ingestion.py`**: receiving the data (the "entry door"). Our nodes send over LoRaWAN to our gateway, which forwards to TTN; TTN publishes each uplink as JSON on its MQTT broker.
 This is the only file that knows TTN's message format.
 
-### `uwsn/decoder.py`: bytes to numbers
-- **`PayloadDecoder`**:
-  - `decode(Uplink)`: unpacks the 14 bytes, checks the length and payload version, and applies the scaling to produce a `Measurement`. Raises an error if the message is malformed.
+**`uwsn/decoder.py`**: bytes to numbers. Mirror of `firmware/src/PayloadCodec.cpp`
 
-### `uwsn/validation.py`: quality control
-- **`DataValidator`**: remembers the recent history per sensor.
-  - `validate(Measurement)`: adds flags for: physically impossible values, a sudden jump versus the previous window (spike), identical values repeated many times (stuck), a gap in sequence numbers (lost packets), a missing, impossible or suddenly jumping temperature (this only flags the temperature, the wind data stays usable), and low battery. It never deletes anything.
+**`uwsn/validation.py`**: quality control. Adds flags if an incoherent data is detected. Remembers the recent history per sensor.
 
-### `uwsn/calibration.py`: drift detection
-- **`DriftReport`**: result of a check (gain ratio, offset, R², recalibration needed).
-- **`CalibrationManager`**:
-  - `check_drift(device, node_series, reference_series)`: fits a line "node vs reference". A perfect sensor has slope 1 and intercept 0; large deviations mean recalibration is needed.
-  - `build_downlink(...)`: will build a command to send new calibration values to a node (TODO).
+**`uwsn/calibration.py`**: drift detection, compares with a reference. Build a command to send new calibration values to a node
 
-### `uwsn/storage.py`: the database
-- **`Repository`** (SQLite): three tables (`sensors`, `uplinks` for raw messages, `measurements`).
-  - `save_sensor()`, `save_uplink()`, `save_measurement()`: write data.
-  - `load_measurements(...)`: read data as a pandas table, with optional filters (TODO).
-  - `load_sensors()`: read the sensor list.
+**`uwsn/storage.py`**: the database. SQLite: three tables (`sensors`, `uplinks`, `measurements`).
 
-### `uwsn/pipeline.py`: gluing it together
-- **`Pipeline`**:
-  - `handle_uplink(Uplink)`: the function called for every message: save the raw message, decode it, validate it, save the result. A malformed message is logged and skipped instead of crashing the program.
+**`uwsn/pipeline.py`**: the chain of action from receiving to storing.
 
-### `uwsn/analysis.py`: turning data into insights
-- **`Analyzer`** (takes a table of measurements):
-  - `usable()`: keeps only measurements without serious flags.
-  - `hourly()`: mean speed, max gust and mean temperature per sensor per hour.
-  - `wind_rose()`: how often wind comes from each direction, per speed class (TODO).
-  - `low_wind_fraction(threshold)`: proportion of time with wind below e.g. 1 m/s per sensor, a key indicator of poor ventilation.
-  - `wind_temperature_correlation()`: correlation between wind speed and the node's own temperature, per sensor. A negative value suggests that wind brings cooler air.
-  - `compare_with_temperature()`: compare with an external temperature dataset, e.g. the city's existing network (TODO).
-  - `availability()`: received windows divided by expected windows, to monitor network health (TODO).
+**`uwsn/analysis.py`**: turning data into insights
 
-### `uwsn/export.py`: output
-- **`DataExporter`**:
-  - `to_csv()`: save a table as CSV.
-  - `to_geojson()`: one point per sensor, for GIS/mapping tools (TODO).
-  - `to_report()`: a summary report for municipalities (TODO).
+**`uwsn/export.py`**: output, save a table as CSV.
 
 ### `uwsn/dashboard/app.py`: the visual interface
-A Streamlit web page (run with `streamlit run uwsn/dashboard/app.py`). For now it loads the data and shows the hourly table; the `TODO` comments list what to add: filters, map with wind arrows, time series, wind rose, network health panel, CSV download.
+A Streamlit web page (run with `streamlit run uwsn/dashboard/app.py`).
 
 ### `main.py`: starting the server
 Creates a `Pipeline` and tells the `TTNMqttIngestor` to call `pipeline.handle_uplink` for each message.

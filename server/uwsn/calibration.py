@@ -1,5 +1,15 @@
 """Server-side calibration monitoring: detects drift against a reference sensor
-and decides when a node needs recalibration (a downlink can then update it)."""
+and decides when a node needs recalibration (a downlink can then update it).
+A sensor is 'Due' if any of these is true:
+    - the node reports CALIBRATION_DUE
+    - data recorded since the last calibration carries DRIFT_SUSPECTED
+    - more than 180 days have passed since the last calibration
+"""
+
+# TODO how are we going to really check the calibration of our sensors ?  ------------------------------
+# TODO Complete the Downlink ---------------------------
+
+
 from dataclasses import dataclass
 import numpy as np
 import pandas as pd
@@ -20,14 +30,15 @@ class CalibrationManager:
         self.max_offset_ms = max_offset_ms
 
     def check_drift(self, device_id: str, node: pd.Series, reference: pd.Series) -> DriftReport:
-        """node / reference: mean speed series on the same timestamps (e.g. MeteoSwiss or a
-        co-located reference anemometer)."""
+        """
+        node / reference: mean speed series on the same timestamps (e.g. MeteoSwiss).
+        """
         df = pd.concat([node, reference], axis=1, keys=["n", "r"]).dropna()
         slope, intercept = np.polyfit(df["r"], df["n"], 1)      # TODO: handle too few points
         r2 = float(np.corrcoef(df["r"], df["n"])[0, 1] ** 2)
         bad = abs(slope - 1) > self.max_gain_error or abs(intercept) > self.max_offset_ms
         return DriftReport(device_id, float(slope), float(intercept), r2, bool(bad))
 
-    def build_downlink(self, device_id: str, new_gain: float, new_offset_v: float) -> bytes:
+    def build_downlink(self, device_id: str, new_gain: float, new_offset_ms: float) -> bytes:
         """TODO: encode a calibration command for the node (see docs/payload_format.md)."""
         raise NotImplementedError

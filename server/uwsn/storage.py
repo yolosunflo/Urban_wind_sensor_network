@@ -105,7 +105,7 @@ class Repository:
         if where:
             sql += " WHERE " + " AND ".join(where)
         sql += " ORDER BY device_id, ts"
-        return pd.read_sql(sql, self._db, params=params, parse_dates=["ts"])
+        return pd.read_sql(sql, self._db, params=params, parse_dates={"ts": {"format": "ISO8601", "utc": True}})
 
     def load_sensors(self) -> pd.DataFrame:
         return pd.read_sql("SELECT * FROM sensors", self._db)

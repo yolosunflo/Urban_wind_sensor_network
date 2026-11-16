@@ -29,7 +29,7 @@ class TemperatureSensor {
    * @brief Starts one conversion, waits for it, reads the result
    * @param tempC the temperature to fill, in degrees C
    *
-   * Blocks for TMP102_CONVERSION_MS (~35 ms), fine since it runs every TEMP_SAMPLE_EVERY_N seconds.
+   * Blocks for TEMP_CONVERSION_MS, fine since it runs every TEMP_SAMPLE_EVERY_N seconds.
    *
    * @returns false if the sensor does not answer or gives an implausible value
    */
