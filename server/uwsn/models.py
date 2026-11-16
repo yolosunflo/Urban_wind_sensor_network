@@ -22,6 +22,14 @@ class QualityFlag(IntFlag):
     MISSING_BEFORE = 1 << 8      # packets lost before this one
     DRIFT_SUSPECTED = 1 << 9     # disagrees with reference station
 
+# Flags that make the WIND values unreliable. Temperature faults are not included on purpose.
+UNUSABLE_WIND_MASK = (QualityFlag.SPIKE | QualityFlag.OUT_OF_RANGE | QualityFlag.STUCK |
+                      QualityFlag.SENSOR_FAULT | QualityFlag.DRIFT_SUSPECTED)
+
+def flag_text(value: int) -> str:
+    """Readable list of the flags set in a measurement, e.g. 'Spike, Low battery'."""
+    names = [f.name.replace("_", " ").capitalize() for f in QualityFlag if f and value & f]
+    return ", ".join(names) or "OK"
 
 @dataclass
 class SensorMeta:
@@ -59,10 +67,8 @@ class Measurement:
 
     @property
     def is_usable(self) -> bool:
-        """True if no serious flag is set"""
-        bad = (QualityFlag.SPIKE | QualityFlag.OUT_OF_RANGE | QualityFlag.STUCK |
-               QualityFlag.SENSOR_FAULT | QualityFlag.DRIFT_SUSPECTED)
-        return not (self.flags & bad)
+        """True if no serious wind flag is set"""
+        return not (self.flags & UNUSABLE_WIND_MASK)
 
     @property
     def has_valid_temp(self) -> bool:

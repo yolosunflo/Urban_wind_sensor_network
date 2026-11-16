@@ -10,11 +10,7 @@ import pandas as pd
 
 from uwsn.analysis import Analyzer, compass_angle, vector_mean_direction, wind_components
 from uwsn.config import SETTINGS
-from uwsn.models import QualityFlag
-
-# Same flags as Measurement.is_usable: the wind value cannot be trusted
-UNRELIABLE_WIND = int(QualityFlag.SPIKE | QualityFlag.OUT_OF_RANGE | QualityFlag.STUCK |
-                      QualityFlag.SENSOR_FAULT | QualityFlag.DRIFT_SUSPECTED)
+from uwsn.models import QualityFlag, UNUSABLE_WIND_MASK, flag_text
 
 ONLINE_MAX_AGE = timedelta(minutes=3 * SETTINGS.window_s // 60)      # 3 missed windows = 30 min
 DELAYED_MAX_AGE = timedelta(hours=3)
@@ -22,10 +18,6 @@ CALIBRATION_WARNING_DAYS = 30
 LOCAL_TZ = "Europe/Zurich"          # Swiss time (Lausanne too); time zone for "hour of day" and "day" (data itself is stored in UTC)
 
 
-def flag_text(value: int) -> str:
-    """Readable list of the flags set in a measurement, e.g. 'Spike, Low battery'."""
-    names = [f.name.replace("_", " ").capitalize() for f in QualityFlag if f and value & f]
-    return ", ".join(names) or "OK"
 
 
 def humanize_age(age: timedelta) -> str:
@@ -54,7 +46,7 @@ def series_frames(df_all: pd.DataFrame, flagged_mode: str, window_s: int = SETTI
     """
     cols = ["mean_speed_ms", "gust_ms", "temp_c"]
     d = df_all.sort_values(["device_id", "ts"]).copy()
-    wind_bad = (d["flags"] & UNRELIABLE_WIND) != 0
+    wind_bad = (d["flags"] & UNUSABLE_WIND_MASK) != 0
     temp_bad = ((d["flags"] & int(QualityFlag.TEMP_FAULT)) != 0) | d["temp_c"].isna()
     d["flags_text"] = d["flags"].map(flag_text)
 
@@ -239,13 +231,3 @@ def attention_items(health: pd.DataFrame) -> list[str]:
             items.append(f":orange[:material/tune:] {name} needs recalibration.")
     return items
 
-
-# ---------------------------------------------------------------- export
-
-def export_frame(df: pd.DataFrame) -> pd.DataFrame:
-    """Measurements with readable columns added, for the CSV download."""
-    out = df.copy()
-    out["usable"] = (out["flags"] & UNRELIABLE_WIND) == 0
-    out["flags_text"] = out["flags"].map(flag_text)
-    out["ts"] = out["ts"].map(lambda t: t.isoformat())
-    return out

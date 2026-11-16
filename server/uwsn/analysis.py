@@ -1,6 +1,7 @@
 """Analysis on stored data (pandas). Input = DataFrame from Repository.load_measurements()."""
 import numpy as np
 import pandas as pd
+from .models import QualityFlag, UNUSABLE_WIND_MASK
 
 
 def vector_mean_direction(speed: pd.Series, direction_deg: pd.Series) -> float:
@@ -28,8 +29,7 @@ class Analyzer:
         self.df = df
 
     def usable(self) -> pd.DataFrame:
-        bad_mask = 0b1000100111      # SPIKE|OUT_OF_RANGE|STUCK|SENSOR_FAULT|DRIFT
-        return self.df[(self.df["flags"] & bad_mask) == 0]
+        return self.df[(self.df["flags"] & UNUSABLE_WIND_MASK) == 0]
 
     def hourly(self) -> pd.DataFrame:
         """Mean speed, max gust, vector-mean direction per sensor per hour.
@@ -39,7 +39,7 @@ class Analyzer:
         if d.empty:
             return pd.DataFrame(columns=cols)
         d = d.copy()
-        d.loc[(d["flags"] & 128) != 0, "temp_c"] = np.nan      # ignore faulty temperatures
+        d.loc[(d["flags"] & QualityFlag.TEMP_FAULT) != 0, "temp_c"] = np.nan      # ignore faulty temperatures
         d["_x"], d["_y"] = wind_components(d["mean_speed_ms"], d["mean_dir_deg"])
         g = d.set_index("ts").groupby("device_id").resample("1h")
         out = g.agg(mean_speed_ms=("mean_speed_ms", "mean"), gust_ms=("gust_ms", "max"),
@@ -83,12 +83,8 @@ class Analyzer:
         """Correlation between wind speed and the node's own temperature, per sensor.
         A negative value suggests wind brings cooler air (ventilation helps)."""
         d = self.usable()
-        d = d[(d["flags"] & 128) == 0].dropna(subset=["temp_c"])
+        d = d[(d["flags"] & QualityFlag.TEMP_FAULT) == 0].dropna(subset=["temp_c"])
         return d.groupby("device_id").apply(lambda g: g["mean_speed_ms"].corr(g["temp_c"]))
-
-    def compare_with_temperature(self, temp_df: pd.DataFrame) -> pd.DataFrame:
-        """TODO: join with urban temperature data, correlate wind vs temperature by street."""
-        raise NotImplementedError
 
     def availability(self, window_s: int = 600) -> pd.Series:
         """Received / expected windows per sensor (network health), between 0 and 1.

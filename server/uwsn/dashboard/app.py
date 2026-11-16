@@ -18,6 +18,7 @@ from uwsn.config import SETTINGS                                   # noqa: E402
 from uwsn.dashboard import charts, data                            # noqa: E402
 from uwsn.models import QualityFlag                                # noqa: E402
 from uwsn.storage import Repository                                # noqa: E402
+from uwsn.export import DataExporter                               # noqa: E402
 
 st.set_page_config(page_title="Street microclimate", page_icon=":material/air:", layout="wide")
 
@@ -285,7 +286,7 @@ with st.container(border=True):
     name = f"uwsn_{start_day:%Y%m%d}_{end_day:%Y%m%d}"
     with st.container(horizontal=True):
         st.download_button(
-            "Download 10-min data (CSV)", data.export_frame(export_all).to_csv(index=False).encode(),
+            "Download 10-min data (CSV)", DataExporter().csv_text(export_all).encode(),
             file_name=f"{name}_10min.csv", mime="text/csv", icon=":material/download:",
             help="Selected sensors and period. Includes flags; unreliable rows are left out when "
                  "'Flagged data' is set to Hide.")
