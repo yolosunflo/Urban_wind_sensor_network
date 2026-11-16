@@ -20,11 +20,13 @@ The prototype uses:
 
 | Wio-E5 Interface | Connected Hardware | Signal Type | Function |
 |---|---|---|---|
+| + | TPS61023 5V output  | Power Input | MCU powering |
+| - | TPS61023 GND output  | Power Input | MCU powering |
 | D4 (provisional) | Reed switch / Hall sensor | Digital input / Interrupt | Detect anemometer rotor rotation |
-| SDA | AS5600 | I²C data | Read wind direction |
-| SCL | AS5600 | I²C clock | Read wind direction |
-| SDA | SHT41 | I²C data | Read ambient temperature |
-| SCL | SHT41 | I²C clock | Read ambient temperature |
+| SDA | AS5600 SDA | I²C data | Read wind direction |
+| SCL | AS5600 SCL | I²C clock | Read wind direction |
+| SDA | SHT41 SDA | I²C data | Read ambient temperature |
+| SCL | SHT41 SCL | I²C clock | Read ambient temperature |
 | D10 (provisional) | MOSFET gate | Digital output | Control switched 5 V load |
 | GND | All electronic components | Ground | Common electrical reference |
 
@@ -87,7 +89,7 @@ flowchart TB
     style H fill:#f3f3f3,stroke:#888,color:#222
     style I fill:#f3f3f3,stroke:#888,color:#222
 ``` 
-*Figure X — Prototype power distribution architecture.
+*Figure 1 — Prototype power distribution architecture.
 The TPS61023 generates the 5 V rail from the 3.6 V bench supply.
 The sensor supply regulation stage remains to be finalized.*
 
