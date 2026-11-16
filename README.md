@@ -24,7 +24,10 @@ for reference only; the node uses `ANEMO_PULSE` (see `firmware/include/config.h`
 - `server/`: Python (ingestion, validation, storage, analysis, calibration, dashboard)
 - `docs/code_documentation.md`: what each file does, and the uplink / downlink formats
 - `docs/testing.md`: software tests (no hardware), hardware tests step by step, gateway setup
-- `REQ.md`: requirements
+- `Requirements.md`: project requirements
+- `ICD.md`: hardware interfaces, pin assignments, connections and power rails
+- `PowBudg.md`: power budget, current consumption estimates and duty-cycle analysis
+- `TestPlan.md`: verification procedures and tests used to check the project requirements
 
 ## Data flow
 
