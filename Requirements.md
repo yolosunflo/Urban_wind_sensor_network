@@ -2,7 +2,7 @@
 
 **Project:** Urban Wind Sensor Network  
 **Version:** 1.0 — Proof of Concept  
-**System configuration:** 3 sensor nodes + 1 LoRaWAN gateway
+**System configuration:** 2 sensor nodes + 1 LoRaWAN gateway
 
 ## 1. Purpose and Scope
 
