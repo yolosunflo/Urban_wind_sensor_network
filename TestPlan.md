@@ -92,10 +92,10 @@ Testing will follow this order:
 
 **Accuracy criterion:**
 
-\[
+$$
 |V_{\text{measured}}-V_{\text{reference}}|
 \leq 0.3+0.03V_{\text{reference}}
-\]
+$$
 
 where wind speed is expressed in m/s.
 
@@ -149,10 +149,10 @@ The full 0.3–20 m/s range must be tested if the available equipment permits. A
 
 **Pass criterion:**
 
-\[
+$$
 |T_{\text{measured}}-T_{\text{reference}}|
 \leq 0.5^\circ C
-\]
+$$
 
 The test validates accuracy under the actual conditions available during the PoC. It does not certify the complete production temperature range.
 
@@ -206,11 +206,11 @@ The test validates accuracy under the actual conditions available during the PoC
 
 Packet success rate:
 
-\[
+$$
 P_{\text{success}}=
 \frac{N_{\text{received}}}{N_{\text{transmitted}}}
 \times100
-\]
+$$
 
 The denominator must count actual transmission attempts, not merely scheduled transmission events.
 
@@ -245,17 +245,17 @@ The denominator must count actual transmission attempts, not merely scheduled tr
 
 Average current:
 
-\[
+$$
 I_{\text{avg}}=
 \frac{1}{T}\int_0^T I(t)\,dt
-\]
+$$
 
 For discrete logger samples:
 
-\[
+$$
 I_{\text{avg}}=
 \frac{\sum I_k\Delta t_k}{\sum\Delta t_k}
-\]
+$$
 
 **Pass criteria:**
 
