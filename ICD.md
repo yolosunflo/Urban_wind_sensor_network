@@ -60,7 +60,7 @@ I²C pull-up resistors must connect to a voltage compatible with the Wio-E5 Mini
 
 ### 3.2 Power Architecture
 
-
+```mermaid
 flowchart TB
     A["3.6 V DC Bench Supply"] --> B["TPS61023 Boost Converter<br/>3.6 V → 5 V"]
     B --> C["5 V Power Rail"]
@@ -86,7 +86,7 @@ flowchart TB
     style G fill:#f3f3f3,stroke:#888,color:#222
     style H fill:#f3f3f3,stroke:#888,color:#222
     style I fill:#f3f3f3,stroke:#888,color:#222
-
+``` 
 *Figure X — Prototype power distribution architecture.
 The TPS61023 generates the 5 V rail from the 3.6 V bench supply.
 The sensor supply regulation stage remains to be finalized.*
