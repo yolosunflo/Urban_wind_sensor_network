@@ -1,7 +1,7 @@
 """Analysis on stored data (pandas). Input = DataFrame from Repository.load_measurements()."""
 import numpy as np
 import pandas as pd
-from .models import QualityFlag, UNUSABLE_WIND_MASK
+from .models import TEMP_FAULT_MASK, UNUSABLE_WIND_MASK
 from .config import SETTINGS
 
 
@@ -40,7 +40,7 @@ class Analyzer:
         if d.empty:
             return pd.DataFrame(columns=cols)
         d = d.copy()
-        d.loc[(d["flags"] & QualityFlag.TEMP_FAULT) != 0, "temp_c"] = np.nan      # ignore faulty temperatures
+        d.loc[(d["flags"] & TEMP_FAULT_MASK) != 0, "temp_c"] = np.nan      # ignore faulty temperatures
         d["_x"], d["_y"] = wind_components(d["mean_speed_ms"], d["mean_dir_deg"])
         g = d.set_index("ts").groupby("device_id").resample("1h")
         out = g.agg(mean_speed_ms=("mean_speed_ms", "mean"), gust_ms=("gust_ms", "max"),
@@ -84,7 +84,7 @@ class Analyzer:
         """Correlation between wind speed and the node's own temperature, per sensor.
         A negative value suggests wind brings cooler air (ventilation helps)."""
         d = self.usable()
-        d = d[(d["flags"] & QualityFlag.TEMP_FAULT) == 0].dropna(subset=["temp_c"])
+        d = d[(d["flags"] & TEMP_FAULT_MASK) == 0].dropna(subset=["temp_c"])
         return d.groupby("device_id").apply(lambda g: g["mean_speed_ms"].corr(g["temp_c"]))
 
     def availability(self, window_s: int = SETTINGS.window_s) -> pd.Series:

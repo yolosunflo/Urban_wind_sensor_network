@@ -1,6 +1,9 @@
 #include "Calibration.h"
 #include "config.h"
+#include <stddef.h>
+#ifdef ARDUINO
 #include <EEPROM.h>   // STM32duino: EEPROM emulated in the last flash page
+#endif
 
 namespace uwsn {
 
@@ -46,6 +49,7 @@ struct StoredCalib {
 };
 }  // namespace
 
+#ifdef ARDUINO
 bool PulseCalibration::load() {
   StoredCalib s;
   uint8_t* b = reinterpret_cast<uint8_t*>(&s);
@@ -63,6 +67,13 @@ void PulseCalibration::save() const {
   for (size_t i = 0; i < sizeof s; i++) eeprom_buffered_write_byte(CALIB_EEPROM_ADDR + i, b[i]);
   eeprom_buffer_flush();                                  // one flash page write for the whole struct
 }
+#else
+// PC build (unit tests, simulator): no flash, the calibration only lives in RAM
+static bool g_saved = false;
+static PulseCalibParams g_flash;
+bool PulseCalibration::load() { if (g_saved) params_ = g_flash; return g_saved; }
+void PulseCalibration::save() const { g_flash = params_; g_saved = true; }
+#endif
 
 WindSample PulseCalibration::apply(const RawSample& r) const {
   WindSample s{};

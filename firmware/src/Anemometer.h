@@ -9,6 +9,7 @@ namespace uwsn {
  *
  * One base class + one sub-class per anemometer type, matching Calibration:
  *    - AnalogAnemometer: sensor with two analog voltage outputs (speed + vane) -> AnalogCalibration
+ *      (kept for reference, not used on our node)
  *    - PulseAnemometer: our own anemometer, reed switch pulses + AS5600 angle -> PulseCalibration
  *
  * The type used by the node is chosen with ANEMOMETER_TYPE in config.h.
@@ -93,7 +94,7 @@ class PulseAnemometer : public Anemometer {
   /**
    * @param reedPin GPIO of the reed switch (other side of the switch on GND)
    * @param powerPin pin powering the AS5600 (NO_PIN if on the 3V3 rail, as on our schematic)
-   * @param wire I2C bus of the AS5600 (shared with the SHT40)
+   * @param wire I2C bus of the AS5600 (shared with the TMP102 temperature sensor)
    */
   explicit PulseAnemometer(int reedPin, int powerPin = NO_PIN, TwoWire& wire = Wire);
 
@@ -106,7 +107,7 @@ class PulseAnemometer : public Anemometer {
    * @brief Takes the pulses counted since the last call and reads the AS5600 angle
    *
    * @returns false if the AS5600 does not answer or detects no magnet
-   * (the pulses of that period are then lost)
+   * (out.pulses is still filled, but main.cpp drops the whole sample)
    */
   bool read(RawSample& out) override;
 

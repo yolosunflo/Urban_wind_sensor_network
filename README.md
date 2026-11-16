@@ -1,7 +1,7 @@
 # Urban Wind Sensor Network
 
 Battery-powered nodes on street lamps measure wind speed, wind direction and air temperature,
-send a summary over LoRaWAN, and a Python server checks, stores, analyses and
+send a 10-minute summary over LoRaWAN, and a Python server checks, stores, analyses and
 displays the data.
 
 ## Hardware (prototype)
@@ -22,8 +22,8 @@ for reference only; the node uses `ANEMO_PULSE` (see `firmware/include/config.h`
 
 - `firmware/`: C++ (PlatformIO, Arduino framework) running on each node
 - `server/`: Python (ingestion, validation, storage, analysis, calibration, dashboard)
-- `docs/payload_format.md`: the uplink and downlink formats, the contract between the two
-- `docs/code_documentation.md`: what each file, class and function does
+- `docs/code_documentation.md`: what each file does, and the uplink / downlink formats
+- `docs/testing.md`: software tests (no hardware), hardware tests step by step, gateway setup
 - `REQ.md`: requirements
 
 ## Data flow
@@ -49,7 +49,7 @@ Change these numbers only in `firmware/include/config.h`; everything else is der
 The node has no clock and never decides by itself that it needs calibrating. The server
 compares a node with a reference (`CalibrationManager.check_drift()`), computes new values
 and sends them in a downlink. The node applies them at once and keeps them in flash.
-See `docs/payload_format.md` for the format.
+See the "Payload format" section of `docs/code_documentation.md`.
 
 ## Server: quick start
 
@@ -58,7 +58,7 @@ cd server
 pip install -r requirements.txt
 python scripts/seed_fake_data.py         # fake data, to try without hardware
 streamlit run uwsn/dashboard/app.py      # dashboard in the browser
-python -m pytest                         # tests
+python -m pytest                         # tests (see docs/testing.md)
 ```
 
 To receive real data, set `TTN_APP_ID` and `TTN_API_KEY` (environment variables, never in git),
@@ -73,6 +73,9 @@ write rights on downlinks.
 3. Connect an ST-Link to the SWD pins of the LoRa-E5 mini (the board has no debug probe).
    The first time, remove the read protection of the factory AT firmware with STM32CubeProgrammer.
 4. `pio run -t upload`, then `pio device monitor` (USB-C) to see the log.
+
+Before the real firmware, run the hardware tests one by one (`pio run -e test_i2c -t upload`, ...)
+and the unit tests on the computer (`pio test -e native`): see `docs/testing.md`.
 
 Wiring (LoRa-E5 mini): I2C SDA PA15 / SCL PB15 (AS5600 + TMP102), reed switch PB4 to GND,
 battery divider on PB3. Pins are set in `firmware/include/config.h`.

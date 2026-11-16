@@ -17,14 +17,16 @@ class QualityFlag(IntFlag):
     SENSOR_FAULT = 1 << 5
     FEW_SAMPLES = 1 << 6
     TEMP_FAULT = 1 << 7
-    
+
     # server-only
     MISSING_BEFORE = 1 << 8      # packets lost before this one
     DRIFT_SUSPECTED = 1 << 9     # disagrees with reference station
 
 # Flags that make the WIND values unreliable. Temperature faults are not included on purpose.
-UNUSABLE_WIND_MASK = (QualityFlag.SPIKE | QualityFlag.OUT_OF_RANGE | QualityFlag.STUCK |
-                      QualityFlag.SENSOR_FAULT | QualityFlag.DRIFT_SUSPECTED)
+# Kept as a plain int: pandas 3 refuses `column & QualityFlag(...)` (it sees the flag as a list).
+UNUSABLE_WIND_MASK = int(QualityFlag.SPIKE | QualityFlag.OUT_OF_RANGE | QualityFlag.STUCK |
+                         QualityFlag.SENSOR_FAULT | QualityFlag.DRIFT_SUSPECTED)
+TEMP_FAULT_MASK = int(QualityFlag.TEMP_FAULT)
 
 def flag_text(value: int) -> str:
     """Readable list of the flags set in a measurement, e.g. 'Spike, Low battery'."""

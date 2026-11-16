@@ -1,0 +1,3 @@
+device_id,lat,lon,height_m,site_description,installed_at
+uwsn-01,46.5191,6.5668,4,"EPFL, test site 1 (replace with the real place)",2026-12-01
+uwsn-02,46.5200,6.5650,4,"EPFL, test site 2 (replace with the real place)",2026-12-01
