@@ -13,10 +13,13 @@ struct CommonCalibParams {
 
 /**
  * @brief Converts a RawSample (sensor units) into a WindSample (m/s, deg)
- * 
+ *
  * One base class + one sub-class per anemometer type:
- *    - AnalogCalibration : sensor with two analog voltage outputs (speed + vane)
- *    - PulseCalibration  : our own anemometer, reed/Hall pulses + AS5600 angle
+ *    - AnalogCalibration : sensor with two analog voltage outputs (speed + vane), kept for reference
+ *    - PulseCalibration  : our own anemometer, reed pulses + AS5600 angle (the one we use)
+ *
+ * The node has no clock: it never decides that a calibration is due. It only changes its
+ * parameters when the server sends new ones in a downlink (see docs/payload_format.md).
  */
 class Calibration {
  public:
@@ -63,7 +66,7 @@ struct AnalogCalibParams : CommonCalibParams {
 };
 
 /**
- * @brief Anemometer with analog voltage outputs
+ * @brief Anemometer with analog voltage outputs (not used on our node, kept for reference)
  */
 class AnalogCalibration : public Calibration {
  public:
@@ -100,9 +103,27 @@ struct PulseCalibParams : CommonCalibParams {
 class PulseCalibration : public Calibration {
  public:
   /**
-   * @brief Replaces the parameters
+   * @brief Replaces the parameters (in RAM only, call save() to keep them)
    */
   void set(const PulseCalibParams& p) { params_ = p; }
+
+  /**
+   * @brief Current parameters (to change only some fields before set())
+   */
+  const PulseCalibParams& get() const { return params_; }
+
+  /**
+   * @brief Loads the parameters saved in flash
+   * @returns false if nothing valid is stored (first boot): the defaults are kept
+   */
+  bool load();
+
+  /**
+   * @brief Saves the parameters in flash so they survive a reset or a battery change
+   *
+   * Only called when a calibration downlink arrives (a few times per year), so flash wear is not an issue.
+   */
+  void save() const;
 
   /**
    * @brief Converts pulses to a frequency, then to m/s; AS5600 counts to degrees

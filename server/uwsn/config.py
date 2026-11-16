@@ -21,8 +21,16 @@ class Settings:
     battery_offset_v: float = 2.0
     battery_lsb_v: float = 0.01
 
+    # Downlink (calibration commands): MUST match firmware/include/config.h
+    uplink_port: int = 1
+    downlink_port: int = 2
+    calib_gain_lsb: float = 0.0001       # m/s per Hz
+    calib_offset_lsb_ms: float = 0.001   # m/s
+    calib_dir_lsb_deg: float = 0.1       # deg
+    calib_temp_lsb_c: float = 0.01       # C
+
     # Validation thresholds
-    window_s: int = 600            # expected interval between uplinks
+    window_s: int = 600            # expected interval between uplinks: MUST match WINDOW_S in config.h
     max_speed_ms: float = 60.0
     max_jump_ms: float = 15.0      # spike threshold between consecutive windows
     temp_min_c: float = -20.0

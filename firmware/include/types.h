@@ -8,10 +8,10 @@ enum QualityFlag : uint8_t {
   Q_OK               = 0,
   Q_OUT_OF_RANGE     = 1 << 0,
   Q_STUCK            = 1 << 1,
-  Q_SPIKE            = 1 << 2, // not used
+  Q_SPIKE            = 1 << 2, // not used on the node (the server detects spikes)
   Q_LOW_BATTERY      = 1 << 3,
-  Q_CALIBRATION_DUE  = 1 << 4, // not used
-  Q_SENSOR_FAULT     = 1 << 5, // not used
+  Q_CALIBRATION_DUE  = 1 << 4, // not used: the node has no clock, the server decides
+  Q_SENSOR_FAULT     = 1 << 5,
   Q_FEW_SAMPLES      = 1 << 6,
   Q_TEMP_FAULT       = 1 << 7,
 };

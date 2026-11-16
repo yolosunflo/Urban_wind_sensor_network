@@ -25,14 +25,11 @@ class DataValidator:
         if is_spike:
             flags |= QualityFlag.SPIKE
         else:
-            hist.append(m.mean_speed_ms)          # only normal values go into the history
+            # Stuck sensor: N identical consecutive means (and not all 0).
+            # Only normal values go into the history, so a spike cannot hide or fake a stuck sensor.
+            hist.append(m.mean_speed_ms)
             if len(hist) == hist.maxlen and len(set(hist)) == 1 and hist[0] > 0.0:
                 flags |= QualityFlag.STUCK
-
-        # Stuck sensor: N identical consecutive means (and not all ~0)
-        hist.append(m.mean_speed_ms)
-        if len(hist) == hist.maxlen and len(set(hist)) == 1 and hist[0] > 0.0:
-            flags |= QualityFlag.STUCK
 
         # Missing packets
         last = self._last_seq.get(m.device_id)
@@ -45,7 +42,7 @@ class DataValidator:
             flags |= QualityFlag.TEMP_FAULT
         else:
             prev = self._last_temp.get(m.device_id)
-            if not (prev is not None and abs(m.temp_c - prev) > S.max_temp_jump_c):
+            if prev is not None and abs(m.temp_c - prev) > S.max_temp_jump_c:
                 flags |= QualityFlag.TEMP_FAULT
             self._last_temp[m.device_id] = m.temp_c
 

@@ -49,15 +49,34 @@ size_t PayloadCodec::encode(const UplinkFrame& f, uint8_t* buf) {
 
 bool PayloadCodec::decode(const uint8_t* buf, size_t len, UplinkFrame& f) {
   if (len < UPLINK_SIZE) return false;
-  f.version = buf[0];  
+  f.version = buf[0];
   f.seq = get16(buf + 1);
-  f.meanSpeed = get16(buf + 3); 
-  f.gust = get16(buf + 5); 
+  f.meanSpeed = get16(buf + 3);
+  f.gust = get16(buf + 5);
   f.meanDir = get16(buf + 7);
-  f.stdSpeed = buf[9]; 
+  f.stdSpeed = buf[9];
   f.temp = (int16_t)get16(buf + 10);
-  f.battery = buf[12]; 
+  f.battery = buf[12];
   f.flags = buf[13];
+  return true;
+}
+
+bool PayloadCodec::decodeCalibration(const uint8_t* buf, size_t len, PulseCalibParams& p) {
+  if (len < 1) return false;
+
+  if (buf[0] == CMD_RESET_CALIB) {
+    p = PulseCalibParams{};          // firmware defaults
+    return true;
+  }
+  if (buf[0] != CMD_SET_CALIB || len < DOWNLINK_CALIB_SIZE) return false;
+
+  const uint16_t gainRaw = get16(buf + 1);
+  if (gainRaw == 0) return false;    // a zero gain would read 0 m/s forever
+
+  p.speedGain      = gainRaw * CALIB_GAIN_LSB;
+  p.speedOffset_ms = (int16_t)get16(buf + 3) * CALIB_OFFSET_LSB_MS;
+  p.dirOffsetDeg   = (int16_t)get16(buf + 5) * CALIB_DIR_LSB_DEG;
+  p.tempOffsetC    = (int16_t)get16(buf + 7) * CALIB_TEMP_LSB_C;
   return true;
 }
 

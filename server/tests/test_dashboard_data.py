@@ -2,7 +2,8 @@ from datetime import datetime, timedelta, timezone
 import numpy as np
 import pandas as pd
 from uwsn.dashboard import data
-from uwsn.models import QualityFlag
+from uwsn.export import DataExporter
+from uwsn.models import QualityFlag, flag_text
 
 T0 = pd.Timestamp("2026-11-01", tz="UTC")
 NOW = datetime(2026, 11, 2, tzinfo=timezone.utc)
@@ -16,8 +17,8 @@ def frame(rows):
 
 
 def test_flag_text():
-    assert data.flag_text(0) == "OK"
-    assert data.flag_text(int(QualityFlag.SPIKE | QualityFlag.LOW_BATTERY)) == "Spike, Low battery"
+    assert flag_text(0) == "OK"
+    assert flag_text(int(QualityFlag.SPIKE | QualityFlag.LOW_BATTERY)) == "Spike, Low battery"
 
 
 def test_insert_gaps_breaks_line_only_where_packets_are_missing():
@@ -82,7 +83,7 @@ def test_sensor_summary_and_missing_sensor_metadata():
 
 
 def test_export_frame():
-    out = Data.export_frame(frame([("a", 0, 1, int(QualityFlag.STUCK), 5)]))
+    out = DataExporter.prepare(frame([("a", 0, 1, int(QualityFlag.STUCK), 5)]))
     assert not out.loc[0, "usable"] and out.loc[0, "flags_text"] == "Stuck"
     assert isinstance(out.loc[0, "ts"], str)
 

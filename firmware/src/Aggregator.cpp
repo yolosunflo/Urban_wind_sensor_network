@@ -4,8 +4,6 @@
 
 namespace uwsn {
 
-#define EXP_SAMPLE 0.8f // expect 80% of good samples
-
 /**
  * Helper functions
  */
@@ -54,7 +52,9 @@ WindAggregate Aggregator::compute() const {
   a.nSamples = sample_count;
 
   a.flags = Q_OK;
-  if (sample_count < (BURST_S * 1000UL / SAMPLE_PERIOD_MS) * EXP_SAMPLE) a.flags |= Q_FEW_SAMPLES;
+  const uint16_t attempts = sample_count + faults_;
+  if (sample_count < SAMPLES_PER_BURST * MIN_SAMPLE_RATIO) a.flags |= Q_FEW_SAMPLES;   // some samples missing
+  if (attempts == 0 || faults_ > attempts * SENSOR_FAULT_RATIO) a.flags |= Q_SENSOR_FAULT; // sensor failing
   if (maxSpeed_ > SPEED_MAX_MS) a.flags |= Q_OUT_OF_RANGE;
   if (vaneStill_ > STUCK_VANE_N) a.flags |= Q_STUCK;                       // wind, but the vane is frozen
   if (maxSpeed_ == 0.0f && vaneMoves_ > STUCK_CUPS_MOVES) a.flags |= Q_STUCK; // vane moves, but not one pulse

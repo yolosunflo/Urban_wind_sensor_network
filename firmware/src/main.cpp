@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <Wire.h>
 #include "config.h"
 #include "Anemometer.h"
 #include "TemperatureSensor.h"
@@ -25,52 +26,88 @@ static PowerManager power;
 
 static Aggregator agg;
 
-static uint16_t seq = 0;   // TODO: persist across resets
+// RAM is kept during deep sleep (STOP2), so seq only restarts at 0 after a reset or a
+// battery change. The server sees that as one "missing packets" flag: fine for the prototype.
+static uint16_t seq = 0;
+
+/**
+ * @brief Applies a calibration command from the server and keeps it in flash.
+ * The node has no clock: this is the ONLY way its calibration changes.
+ */
+static void handleDownlink(const uint8_t* buf, size_t len) {
+#if ANEMOMETER_TYPE == ANEMO_PULSE
+  PulseCalibParams p = calib.get();          // fields the command does not carry are kept
+  if (PayloadCodec::decodeCalibration(buf, len, p)) {
+    calib.set(p);
+    calib.save();
+    Serial.println(F("New calibration applied and saved"));
+  } else {
+    Serial.println(F("Unknown or invalid downlink, ignored"));
+  }
+#else
+  (void)buf; (void)len;                      // analog anemometer: downlink calibration not implemented
+#endif
+}
 
 void setup() {
   Serial.begin(115200);
-  sensor.begin();
-  tempSensor.begin();
+  Wire.setSDA(PIN_I2C_SDA);                  // I2C2 of the LoRa-E5 mini
+  Wire.setSCL(PIN_I2C_SCL);
+
+#if ANEMOMETER_TYPE == ANEMO_PULSE
+  if (!calib.load()) Serial.println(F("No saved calibration, using defaults"));
+#endif
+  if (!sensor.begin())     Serial.println(F("Anemometer not detected"));      // windows will carry Q_SENSOR_FAULT
+  if (!tempSensor.begin()) Serial.println(F("Temperature sensor not detected")); // windows will carry Q_TEMP_FAULT
   power.begin();
-  radio.begin();
+  if (!radio.begin())      Serial.println(F("LoRaWAN join failed, retried at each window"));
 }
 
 void loop() {
-  // Sampling burst
+  // millis() only counts awake time (it stops during deep sleep), which is exactly what we
+  // need: the time spent awake in this window, to sleep the rest of WINDOW_MS.
+  const uint32_t windowStart = millis();
+
+  // Sampling burst: SAMPLES_PER_BURST samples, one every SAMPLE_PERIOD_MS
   agg.reset();
   sensor.powerOn();
-  const uint32_t t0 = millis();
-  uint16_t sample_count = 0;                     // sample counter
-  while (millis() - t0 < BURST_S * 1000UL) {
+  uint32_t nextSample = millis();
+  for (uint16_t i = 0; i < SAMPLES_PER_BURST; i++) {
     RawSample raw;
     if (sensor.read(raw)) agg.add(calib.apply(raw));
-    if (sample_count++ % TEMP_SAMPLE_EVERY_N == 0) {   // temperature changes slowly: read less often
-    float t;
-    if (tempSensor.read(t)) agg.addTemp(calib.applyTemp(t));
-    else agg.addTempFault();
+    else agg.addFault();
+
+    if (i % TEMP_SAMPLE_EVERY_N == 0) {      // temperature changes slowly: read less often
+      float t;
+      if (tempSensor.read(t)) agg.addTemp(calib.applyTemp(t));
+      else agg.addTempFault();
     }
-    delay(SAMPLE_PERIOD_MS);
+
+    // Fixed rhythm: the time spent reading is not added on top of the period
+    nextSample += SAMPLE_PERIOD_MS;
+    const int32_t wait = (int32_t)(nextSample - millis());
+    if (wait > 0) delay(wait);
   }
   sensor.powerOff();
 
   // Aggregate + flag quality
   WindAggregate wind_agg = agg.compute();
   if (power.isLow()) wind_agg.flags |= Q_LOW_BATTERY;
-  // TODO: needs a real clock (RTC or network time) for calib.isDue(now)
 
-  // Encode + send
+  // Encode + send (the downlink, if any, arrives during this call)
   uint8_t buf[UPLINK_SIZE];
   UplinkFrame frame = PayloadCodec::toFrame(wind_agg, seq++, power.readBatteryV());
   size_t encoded_message = PayloadCodec::encode(frame, buf);
-  radio.send(buf, encoded_message); // TODO
+  if (!radio.send(buf, encoded_message)) Serial.println(F("Uplink failed, window lost"));
 
-  // 4. Handle downlink (new calibration / new interval)
-  uint8_t dl[16]; size_t dlLen = 0;
-  if (radio.pollDownlink(dl, dlLen)) {
-    // TODO: parse command -> calib.set(...); calib.save();
-  }
+  // New calibration from the server?
+  uint8_t dl[DOWNLINK_MAX_SIZE];
+  size_t dlLen = 0;
+  if (radio.pollDownlink(dl, dlLen)) handleDownlink(dl, dlLen);
 
-  // 5. Sleep the rest of the window
+  // Sleep the rest of the window
   radio.sleep();
-  if (WINDOW_S > BURST_S) power.deepSleep((WINDOW_S - BURST_S) * 1000UL);
+  Serial.flush();
+  const uint32_t awakeMs = millis() - windowStart;
+  if (awakeMs < WINDOW_MS) power.deepSleep(WINDOW_MS - awakeMs);
 }

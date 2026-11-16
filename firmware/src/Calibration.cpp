@@ -1,5 +1,6 @@
 #include "Calibration.h"
 #include "config.h"
+#include <EEPROM.h>   // STM32duino: EEPROM emulated in the last flash page
 
 namespace uwsn {
 
@@ -17,7 +18,7 @@ float Calibration::correctDirection(float rawDeg) const {
 }
 
 
-// Analog anemometer
+// Analog anemometer (kept for reference, not used on our node)
 
 WindSample AnalogCalibration::apply(const RawSample& r) const {
   // ADC counts to volts
@@ -34,6 +35,34 @@ WindSample AnalogCalibration::apply(const RawSample& r) const {
 
 
 // Our own anemometer (pulses + AS5600)
+
+namespace {
+// What is stored in flash. The magic number tells a saved calibration from blank flash;
+// change it whenever PulseCalibParams changes, so an old layout is never read as the new one.
+constexpr uint32_t CALIB_MAGIC = 0x55574331;   // "UWC1"
+struct StoredCalib {
+  uint32_t magic;
+  PulseCalibParams params;
+};
+}  // namespace
+
+bool PulseCalibration::load() {
+  StoredCalib s;
+  uint8_t* b = reinterpret_cast<uint8_t*>(&s);
+  eeprom_buffer_fill();                                   // copy the flash page to RAM once
+  for (size_t i = 0; i < sizeof s; i++) b[i] = eeprom_buffered_read_byte(CALIB_EEPROM_ADDR + i);
+  if (s.magic != CALIB_MAGIC) return false;               // first boot: keep the defaults
+  params_ = s.params;
+  return true;
+}
+
+void PulseCalibration::save() const {
+  const StoredCalib s{CALIB_MAGIC, params_};
+  const uint8_t* b = reinterpret_cast<const uint8_t*>(&s);
+  eeprom_buffer_fill();
+  for (size_t i = 0; i < sizeof s; i++) eeprom_buffered_write_byte(CALIB_EEPROM_ADDR + i, b[i]);
+  eeprom_buffer_flush();                                  // one flash page write for the whole struct
+}
 
 WindSample PulseCalibration::apply(const RawSample& r) const {
   WindSample s{};
