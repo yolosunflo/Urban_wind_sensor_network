@@ -75,28 +75,28 @@ The following calculations use equivalent current referred to the 3.6 V bench-su
 
 The sleep duration excludes active processing, transmission, and reception:
 
-\[
+$$
 t_{\text{sleep}}=1800-6-3.6-6
-\]
+$$
 
-\[
+$$
 t_{\text{sleep}}=1784.4\text{ s}
-\]
+$$
 
 For the switched 5 V load, the equivalent current at the 3.6 V input is estimated as:
 
-\[
+$$
 I_{\text{input}}=
 \frac{V_{\text{out}}I_{\text{out}}}
 {V_{\text{in}}\eta}
-\]
+$$
 
-\[
+$$
 I_{\text{input}}=
 \frac{5\times0.005}
 {3.6\times0.85}
 =8.17\text{ mA}
-\]
+$$
 
 This load is only active for three seconds over the 30-minute period.
 
@@ -104,44 +104,44 @@ This load is only active for three seconds over the 30-minute period.
 
 For each operating state:
 
-\[
+$$
 I_{\text{avg},i}=
 I_i\frac{t_i}{T}
-\]
+$$
 
 The total average current is:
 
-\[
+$$
 I_{\text{avg}}=
 \sum_i I_{\text{avg},i}
-\]
+$$
 
 Therefore:
 
-\[
+$$
 I_{\text{avg}}\approx0.216\text{ mA}
-\]
+$$
 
 ### 3.2 Design Margin
 
 A 25% engineering margin is applied to account for uncertainties in component consumption, radio behaviour, and implementation.
 
-\[
+$$
 I_{\text{design}}=
 0.216\times1.25
-\]
+$$
 
-\[
+$$
 \boxed{I_{\text{design}}\approx0.270\text{ mA}}
-\]
+$$
 
 <badge color="success">Below preliminary target</badge>
 
 The preliminary target is:
 
-\[
+$$
 \boxed{I_{\text{avg}}<0.45\text{ mA}}
-\]
+$$
 
 The estimated consumption, including the design margin, remains below this target.
 
@@ -198,10 +198,10 @@ The following parameters will be required:
 
 Battery autonomy will subsequently be estimated using:
 
-\[
+$$
 t_{\text{autonomy}}=
 \frac{C_{\text{usable}}}{I_{\text{avg}}}
-\]
+$$
 
 where capacity is expressed in mAh and average current in mA.
 
