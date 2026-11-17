@@ -1,208 +1,130 @@
 # DOCUMENT 3 — POWER BUDGET AND DUTY CYCLE ANALYSIS
 
 **Project:** Urban Wind Sensor Network  
-**Version:** 1.0 — Preliminary Estimation  
+**Version:** 1.1 — Preliminary Estimation (aligned with firmware timing)  
 **Purpose:** Establish an initial power-consumption estimate to guide future battery selection.
 
 ## 1. Scope and Assumptions
 
-The prototype will be powered by an external bench power supply rather than a battery.
+The prototype is powered by an external 3.6 V bench supply instead of a battery. A TPS61023 boost converter generates 5 V for the LoRa-E5 mini, whose onboard regulator provides the 3V3 rail used by the sensors.
 
-A nominal 3.6 V DC input rail is assumed for preliminary calculations. The TPS61023 boost converter provides a 5 V rail where required.
+All currents are expressed **as seen at the 3.6 V input**, in line with how TEST-07 measures them.
 
-The Wio-E5 Mini operates from an appropriate regulated logic supply. The 3.6 V input **must not be connected directly to a 3.3 V-only supply pin.**
+Timing comes from `firmware/include/config.h` (see Requirements §1.2). Every window is identical, so one 10-minute window is analysed.
 
-The following assumptions are used:
+| Parameter | Assumption | Source |
+|---|---|---|
+| Window | 600 s | `WINDOW_S` |
+| Sampling burst | 300 s at 1 Hz (300 samples) | `BURST_S`, `SAMPLE_PERIOD_MS` |
+| MCU processing | 2 s per window at 8 mA | assumption |
+| LoRa transmission | 1.2 s per window at 45 mA | assumption |
+| LoRa reception | 2 s per window at 12 mA (calibration downlink arrives here, no extra wake-up) | assumption |
+| MCU sleep current | 15 µA | assumption |
+| MCU duty during burst (sleeps between samples, confirmed) | 5 % of each second at 8 mA | assumption for the awake fraction, to measure |
+| AS5600 supply current | 6.5 mA typical while powered | datasheet value, **to verify** |
+| AS5600 on-time if power-gated | 15 ms per sample (10 ms start-up `AS5600_STARTUP_MS` + read) | assumption |
+| TMP102 | about 1 µA shutdown, 35 ms one-shot every 10th sample: about 0.001 mA average | datasheet order of magnitude |
+| Reed switch | internal pull-up about 80 µA while the contact is closed, closed about 12 % of the time: 0.010 mA | assumption |
+| Battery divider | 2 × 1 MΩ across 3.6 V: 0.0018 mA | `BATTERY_DIVIDER` |
+| TPS61023 quiescent current | 20 µA | assumption |
 
-| Parameter | Assumption |
-|---|---|
-| Bench supply voltage | 3.6 V |
-| Measurement interval | 10 minutes |
-| Analysis duration | 30 minutes |
-| Number of measurement cycles | 3 |
-| MCU active current | 8 mA |
-| MCU sleep current | 15 µA |
-| LoRa transmission current | 45 mA |
-| LoRa transmission duration | 1.2 seconds per cycle |
-| LoRa reception current | 12 mA |
-| Reception duration | 2 seconds per cycle |
-| Magnetic sensor | Passive reed switch or low-power Hall sensor |
-| Hall sensor current assumption | 10 µA average |
-| SHT41 active current assumption | 0.3 mA |
-| SHT41 measurement duration | 1 second per cycle |
-| Boost converter quiescent current | 20 µA |
-| Boost converter efficiency | 85% (assumption for switched 5 V load) |
+These values are preliminary engineering assumptions, not measured component specifications.
 
-These values are preliminary engineering assumptions, not measured component specifications. Actual values depend on the selected operating mode, radio configuration, board implementation, and firmware.
+The 5 V switched load and MOSFET of v1.0 are removed: the firmware has no switched load (`PIN_SENSOR_POWER = -1`). The Hall sensor alternative is dropped: the node uses a reed switch.
 
 ## 2. Duty Cycle
 
-Each 10-minute cycle is divided into:
-
-1. Sensor acquisition and processing.
-2. LoRaWAN transmission.
-3. LoRaWAN reception window.
-4. Low-power sleep.
-
-The assumed timing is:
-
-| Operating State | Duration per 10-minute cycle |
+| Operating state | Duration per 600 s window |
 |---|---:|
-| MCU active processing | 2 seconds |
-| LoRa transmission | 1.2 seconds |
-| LoRa reception | 2 seconds |
-| Remaining sleep time | 594.8 seconds |
+| Sampling burst (1 Hz) | 300 s |
+| MCU processing | 2 s |
+| LoRa transmission | 1.2 s |
+| LoRa reception | 2 s |
+| Deep sleep | 294.8 s |
 
-The SHT41 is activated during the acquisition period.
+The MCU sleeps between samples. The AS5600 is the dominant unknown: `PIN_ANEMO_POWER = -1` means it is currently **always powered on the 3V3 rail**, not gated. Two scenarios bracket the result:
 
-Wind-speed pulse detection is assumed to operate with negligible additional average consumption using a passive reed switch.
+- **A, as configured today:** AS5600 always on.
+- **B:** AS5600 power-gated and only on during each sample (requires a power pin, ICD-07).
 
-## 3. Estimated Average Current Over 30 Minutes
+## 3. Estimated Average Current
 
-The following calculations use equivalent current referred to the 3.6 V bench-supply input.
+| Component / state | A (mA) | B (mA) |
+|---|---:|---:|
+| MCU during burst (300 s) | 0.2000 | 0.2000 |
+| MCU sleep (remaining time) | 0.0145 | 0.0145 |
+| MCU processing (2 s) | 0.0267 | 0.0267 |
+| LoRa TX (1.2 s) | 0.0900 | 0.0900 |
+| LoRa RX (2 s) | 0.0400 | 0.0400 |
+| AS5600 | 6.5000 | 0.0488 |
+| TMP102 | 0.0010 | 0.0010 |
+| Reed switch pull-up | 0.0100 | 0.0100 |
+| Battery divider | 0.0018 | 0.0018 |
+| TPS61023 quiescent | 0.0200 | 0.0200 |
+| **Total average** | **6.90** | **0.453** |
+| **With 25 % margin** | **8.6** | **0.566** |
 
-| Component / Operating State | Current | Duration over 30 min | Average Input Current |
-|---|---:|---:|---:|
-| Wio-E5 active processing | 8 mA | 6 s | 0.0267 mA |
-| Wio-E5 sleep | 0.015 mA | 1,784.4 s | 0.0149 mA |
-| LoRa TX | 45 mA | 3.6 s | 0.0900 mA |
-| LoRa RX | 12 mA | 6 s | 0.0400 mA |
-| Magnetic sensor | 0.010 mA | 1,800 s | 0.0100 mA |
-| SHT41 | 0.3 mA | 3 s | 0.0005 mA |
-| TPS61023 quiescent current | 0.020 mA | 1,800 s | 0.0200 mA |
-| Switched 5 V load | 5 mA at 5 V | 3 s | 0.0136 mA |
-| **Total estimated average** | | | **0.2157 mA** |
-
-The sleep duration excludes active processing, transmission, and reception:
-
-$$
-t_{\text{sleep}}=1800-6-3.6-6
-$$
-
-$$
-t_{\text{sleep}}=1784.4\text{ s}
-$$
-
-For the switched 5 V load, the equivalent current at the 3.6 V input is estimated as:
+Average current of each state:
 
 $$
-I_{\text{input}}=
-\frac{V_{\text{out}}I_{\text{out}}}
-{V_{\text{in}}\eta}
+I_{\text{avg},i}=I_i\frac{t_i}{T},\qquad I_{\text{avg}}=\sum_i I_{\text{avg},i},\qquad T=600\ \text{s}
 $$
 
-$$
-I_{\text{input}}=
-\frac{5\times0.005}
-{3.6\times0.85}
-=8.17\text{ mA}
-$$
+Examples: LoRa TX gives $45 \times 1.2/600 = 0.090$ mA. The AS5600 in B gives $6.5 \times 0.015 \times 300/600 = 0.049$ mA. The MCU gives $8 \times 0.05 \times 300/600 = 0.200$ mA.
 
-This load is only active for three seconds over the 30-minute period.
+The 25 % margin covers uncertainty in component consumption, radio behaviour and implementation.
 
-### 3.1 Average Current Calculation
+## 4. Result against the target
 
-For each operating state:
+The preliminary target is $I_{\text{avg}} < 0.45$ mA.
 
-$$
-I_{\text{avg},i}=
-I_i\frac{t_i}{T}
-$$
+| Scenario | Average | With margin | Target met? |
+|---|---:|---:|---|
+| A | 6.90 mA | 8.6 mA | No |
+| B | 0.453 mA | 0.566 mA | Borderline without margin, no with margin |
 
-The total average current is:
+**The v1.0 estimate (0.216 mA) was obtained with a 2 s active period and without the AS5600.** With the real timing (5-minute burst) and the AS5600 included, the target is not met by the current configuration.
 
-$$
-I_{\text{avg}}=
-\sum_i I_{\text{avg},i}
-$$
+Main levers, in order of impact:
 
-Therefore:
+1. **AS5600 power** (6.5 mA typical): power-gate it (needs a GPIO or a switch) or use its low-power mode if the reading rate allows.
+2. **MCU awake time per sample** (5 % assumed): shorten I²C reads and processing.
+3. **Burst length (`BURST_S`):** burst-related terms scale with it; this trades sampling statistics for power.
+4. **Reed pull-up:** if the rotor stops with the magnet on the switch, the pull-up draws about 80 µA continuously, which alone is a large part of the budget.
 
-$$
-I_{\text{avg}}\approx0.216\text{ mA}
-$$
+## 5. Interpretation and Limitations
 
-### 3.2 Design Margin
+- The conclusions depend on the MCU awake fraction and on the AS5600 current; both must be confirmed (datasheet, TEST-07).
+- LoRa transmission current depends on transmit power, spreading factor and radio configuration.
+- The LoRa-E5 mini board may consume more than the bare module because of additional board circuitry.
+- Currents are referred to the 3.6 V input without detailed conversion losses. If the board derives 3V3 from the 5 V rail with a linear regulator, input-side currents are about 1.6 times higher ($5/(3.6\times0.85)$ at 85 % boost efficiency).
+- The TPS61023 quiescent current and its efficiency at light load must be confirmed.
+- Gateway consumption is excluded.
 
-A 25% engineering margin is applied to account for uncertainties in component consumption, radio behaviour, and implementation.
+## 6. Power Measurement and Validation
 
-$$
-I_{\text{design}}=
-0.216\times1.25
-$$
-
-$$
-\boxed{I_{\text{design}}\approx0.270\text{ mA}}
-$$
-
-<badge color="success">Below preliminary target</badge>
-
-The preliminary target is:
-
-$$
-\boxed{I_{\text{avg}}<0.45\text{ mA}}
-$$
-
-The estimated consumption, including the design margin, remains below this target.
-
-## 4. Interpretation and Limitations
-
-The estimated average current is intended to establish a preliminary design direction, not to demonstrate actual battery autonomy.
-
-Important considerations:
-
-- LoRa transmission current depends on transmit power, spreading factor, and radio configuration.
-- The Wio-E5 Mini development board may consume more current than the bare radio module because of additional board circuitry.
-- A passive reed switch has negligible static current, whereas a Hall sensor introduces a continuous or periodic current depending on its implementation.
-- The TPS61023 quiescent current must be confirmed for the selected operating conditions.
-- The 5 V load is an illustrative switched load, not a confirmed final hardware consumption.
-- The estimate assumes that the MCU, radio, and converter current values can be represented at the stated reference supply. Actual rail conversions, regulator losses, and simultaneous loads must be accounted for in the final measured circuit.
-- Gateway consumption is excluded because this document concerns individual sensor nodes.
-
-The estimate must be updated when the final electrical schematic and component configuration are available.
-
-## 5. Power Measurement and Validation
-
-The estimated current will be validated through the 24-hour Power Measurement Test defined in the Verification and Test Plan.
-
-The measurement will use:
+The estimate will be validated by the 24-hour Power Measurement Test (TEST-07 in the Verification and Test Plan), with:
 
 - A 3.6 V bench power supply.
-- A current logger connected in series with the supply.
-- The fully assembled sensor node.
-- Normal sensor acquisition and LoRaWAN transmission cycles.
+- A current logger in series with the supply (sampling 100 ms or faster).
+- The fully assembled node running the **final timing (600 s window, 300 s burst)**, not the 60 s / 30 s debug values.
 
-The measured average current will be compared against:
+Targets for comparison:
 
-| Parameter | Target |
+| Parameter | Value |
 |---|---:|
-| Preliminary estimated average | 0.216 mA |
-| Estimated average with 25% margin | 0.270 mA |
+| Estimate B (gated AS5600) | 0.453 mA |
+| Estimate A (AS5600 always on) | 6.90 mA |
 | Maximum design target | 0.450 mA |
 
-**Important:** The actual measured current, rather than the estimated value, will be used for subsequent battery sizing.
+The measured current, not the estimate, will be used for battery sizing.
 
-## 6. Future Battery Selection
+## 7. Future Battery Selection
 
-Battery selection is deferred until the power measurement test has been completed.
-
-The following parameters will be required:
-
-- Measured average current.
-- Peak current during LoRa transmission.
-- Required operating voltage.
-- Battery discharge characteristics.
-- Converter efficiency.
-- Available battery capacity.
-- Expected operating temperature range.
-
-Battery autonomy will subsequently be estimated using:
+Battery selection is deferred until TEST-07 is completed. Required inputs: measured average current, peak current during LoRa transmission, operating voltage, discharge characteristics, converter efficiency, available capacity, operating temperature range.
 
 $$
-t_{\text{autonomy}}=
-\frac{C_{\text{usable}}}{I_{\text{avg}}}
+t_{\text{autonomy}}=\frac{C_{\text{usable}}}{I_{\text{avg}}}
 $$
 
-where capacity is expressed in mAh and average current in mA.
-
-No battery lifetime claim is made at the PoC stage.
+with capacity in mAh and current in mA. No battery lifetime claim is made at the PoC stage.
