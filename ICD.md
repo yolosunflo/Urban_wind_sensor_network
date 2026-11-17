@@ -1,205 +1,97 @@
 # DOCUMENT 4 — INTERFACE CONTROL DOCUMENT (ICD)
 
 **Project:** Urban Wind Sensor Network  
-**Version:** 1.0 — Preliminary Hardware Interface Definition  
-**Main controller:** Seeed Wio-E5 Mini
+**Version:** 1.1 — Hardware interfaces (aligned with `firmware/include/config.h`)  
+**Main controller:** Seeed LoRa-E5 mini (STM32WLE5JC)
 
 ## 1. Purpose
 
-This document defines the electrical interfaces between the Wio-E5 Mini, sensors, and power electronics.
+This document is the hardware reference for the node: what connects to what, on which pin and at which voltage. Pin values are taken from `config.h`, which stays the source of truth for the code; if a pin changes, change both.
 
-The prototype uses:
-- A 3.6 V bench power supply.
-- A TPS61023 boost converter to generate 5 V.
-- A Seeed Wio-E5 Mini for processing and LoRaWAN communication.
-- An AS5600 magnetic angle sensor for wind direction.
-- An SHT41 temperature sensor.
-- A magnetic pickup for wind-speed measurement.
+## 2. Schematic
 
-## 2. Microcontroller Pin Mapping
+<!-- TODO: insert Lina's schematic here, e.g. ![Node schematic](img/node_schematic.png) -->
 
-| Wio-E5 Interface | Connected Hardware | Signal Type | Function |
+*Figure 1 — Node schematic (to be inserted).*
+
+## 3. Pin Mapping
+
+| Function | Pin | Connected hardware | Notes |
 |---|---|---|---|
-| + | TPS61023 5V output  | Power Input | MCU powering |
-| - | TPS61023 GND output  | Power Input | MCU powering |
-| D4 (provisional) | Reed switch / Hall sensor | Digital input / Interrupt | Detect anemometer rotor rotation |
-| SDA | AS5600 SDA | I²C data | Read wind direction |
-| SCL | AS5600 SCL | I²C clock | Read wind direction |
-| SDA | SHT41 SDA | I²C data | Read ambient temperature |
-| SCL | SHT41 SCL | I²C clock | Read ambient temperature |
-| D10 (provisional) | MOSFET gate | Digital output | Control switched 5 V load |
-| GND | All electronic components | Ground | Common electrical reference |
+| I²C SDA | PA15 (I2C2) | AS5600 (0x36), TMP102 (0x48) | shared bus |
+| I²C SCL | PB15 | AS5600, TMP102 | shared bus |
+| Wind-speed pulse | PB4 | Reed switch to GND | internal pull-up, edge interrupt, debounce 2 ms (`REED_DEBOUNCE_US`, caps at 500 Hz) |
+| Battery sense | PB3 | Divider: battery + → R1 → PB3 → R2 → GND | R1 = R2 = 1 MΩ, ratio 2.0, 12-bit ADC, Vref 3.3 V |
+| Sensor power gating | none | — | `PIN_ANEMO_POWER = -1`: AS5600 permanently on 3V3 (see PowBudg) |
+| Power in | 5 V / GND | TPS61023 output | board generates its own 3V3 rail |
 
-**Important:** The AS5600 and SHT41 share the same I²C bus.
+**Do not use:** PA4, PA5 (RF switch), PB0 (radio TCXO), PB13 (BOOT button), PA13/PA14 (SWD).
 
-Proposed I²C addresses:
+Devices on the I²C bus:
 
-| Device | I²C Address |
+| Device | Address |
 |---|---|
-| AS5600 | 0x36 |
-| SHT41 | 0x44 (default) |
+| AS5600 (wind direction) | 0x36 (fixed) |
+| TMP102 (temperature, ADD0 on GND) | 0x48 |
 
-The actual GPIO assignments must be verified against the Wio-E5 Mini board pinout before implementation.
+The I²C pull-ups go to the 3V3 rail (ICD-06).
 
-## 3. Power Distribution
+## 4. Power Distribution
 
-### 3.1 Power Rails
-
-| Power ID | Source | Destination | Voltage | Function |
-|---|---|---|---|---|
-| PWR-01 | Bench power supply | Main input | 3.6 V DC | Primary prototype supply |
-| PWR-02 | Main input | TPS61023 input | 3.6 V DC | Boost converter input |
-| PWR-03 | TPS61023 output | Wio-E5 Mini | 5 V DC | Power MCU and LoRa radio |
-| PWR-04 | Regulated logic supply | AS5600 | Compatible supply | Wind-direction sensing |
-| PWR-05 | Regulated logic supply | SHT41 | Compatible supply | Temperature sensing |
-| PWR-06 | Regulated logic supply | Hall sensor (if selected) | Compatible supply | Rotor detection |
-| PWR-07 | TPS61023 output | MOSFET-switched load | 5 V DC | Supply external peripherals |
-| PWR-08 | All supply returns | Common ground | 0 V | Electrical reference |
-
-The AS5600 and SHT41 supply voltages must be selected according to their component or breakout-board specifications.
-
-I²C pull-up resistors must connect to a voltage compatible with the Wio-E5 Mini GPIO logic levels.
-
-### 3.2 Power Architecture
+| ID | Source | Destination | Voltage |
+|---|---|---|---|
+| PWR-01 | Bench supply (battery later) | TPS61023 input and battery divider | 3.6 V |
+| PWR-02 | TPS61023 output | LoRa-E5 mini 5 V input | 5 V |
+| PWR-03 | LoRa-E5 mini 3V3 rail | AS5600, TMP102, I²C pull-ups | 3.3 V |
+| PWR-04 | All returns | Common ground | 0 V |
 
 ```mermaid
 flowchart TB
-    A["3.6 V DC Bench Supply"] --> B["TPS61023 Boost Converter<br/>3.6 V → 5 V"]
-    B --> C["5 V Power Rail"]
+    A["3.6 V supply<br/>(bench; battery not integrated yet)"] --> B["TPS61023 boost<br/>3.6 V → 5 V"]
+    A --> R["Battery divider<br/>2 x 1 MΩ → PB3"]
+    B --> D["LoRa-E5 mini<br/>MCU + LoRaWAN"]
+    D -->|"3V3 rail"| F["AS5600<br/>wind direction"]
+    D -->|"3V3 rail"| G["TMP102<br/>temperature"]
+    H["Reed switch<br/>wind speed"] -->|"PB4"| D
+    R -->|"PB3"| D
+```
 
-    C --> D["Seeed Wio-E5 Mini<br/>MCU + LoRaWAN"]
-    C --> E["Sensor Regulation<br/>To be finalized"]
+*Figure 2 — Power distribution.*
 
-    E --> F["AS5600<br/>Wind Direction"]
-    E --> G["SHT41<br/>Temperature"]
-    E --> H["Hall / Reed Sensor<br/>Wind Speed"]
+Constraints:
 
-    I["Common Ground"] -.-> D
-    I -.-> F
-    I -.-> G
-    I -.-> H
+1. The 3.6 V supply must never be connected directly to a 3.3 V-only pin.
+2. The boost converter must supply the peak current of a LoRa transmission without brown-out (ICD-08).
+3. I²C pull-ups and all signals stay at 3.3 V.
+4. All parts share one ground.
 
-    style A fill:#e8eef7,stroke:#54749a,color:#172b46
-    style B fill:#e8eef7,stroke:#54749a,color:#172b46
-    style C fill:#dce9f7,stroke:#54749a,color:#172b46
-    style D fill:#e2f0e8,stroke:#54846a,color:#183b28
-    style E fill:#fff0d9,stroke:#bd9145,color:#553b12
-    style F fill:#f3f3f3,stroke:#888,color:#222
-    style G fill:#f3f3f3,stroke:#888,color:#222
-    style H fill:#f3f3f3,stroke:#888,color:#222
-    style I fill:#f3f3f3,stroke:#888,color:#222
-``` 
-*Figure 1 — Prototype power distribution architecture.
-The TPS61023 generates the 5 V rail from the 3.6 V bench supply.
-The sensor supply regulation stage remains to be finalized.*
+## 5. Sensor Interfaces
 
-**Power architecture constraints:**
-
-1. The bench supply provides 3.6 V to the TPS61023.
-2. The TPS61023 generates the 5 V rail.
-3. The 5 V rail powers the Wio-E5 Mini through its specified power input.
-4. Sensor supply voltages must respect their respective datasheets.
-5. I²C pull-ups must be compatible with the Wio-E5 logic voltage.
-6. The boost converter must support peak current during LoRa transmission.
-7. All subsystems share a common ground.
-
-## 4. Sensor Interfaces
-
-### 4.1 Anemometer — Wind Speed
-
-| Parameter | Specification |
-|---|---|
-| Sensor principle | Magnetic pulse detection |
-| Mechanical input | Three-cup rotor |
-| Electrical output | Digital pulse |
-| MCU connection | D4 (provisional) |
-| Acquisition method | GPIO interrupt / pulse timing |
-| Processed variable | Rotor frequency and wind speed |
-
-The number of magnetic events per revolution must be defined by the mechanical and electronics teams.
-
-### 4.2 Wind Direction — AS5600
-
-| Parameter | Specification |
-|---|---|
-| Sensor | AS5600 magnetic rotary position sensor |
-| Measurement principle | Magnetic angular position detection |
-| Mechanical input | Rotating wind vane and associated magnet |
-| Electrical interface | I²C |
-| MCU connections | SDA and SCL |
-| I²C address | 0x36 |
-| Resolution | 12-bit angular measurement |
-| Processed variable | Wind direction, 0–360° |
-
-**Mechanical integration requirements:**
-
-- A suitable diametrically magnetised magnet must be mounted on the rotating vane assembly.
-- The AS5600 must be positioned and aligned with the magnet according to its datasheet.
-- The magnet-to-sensor air gap must be defined and maintained.
-- The mechanical assembly must permit full 360° rotation.
-- The sensor must not experience mechanical contact with the rotating assembly.
-
-**Firmware requirements:**
-
-- Read angular measurements through I²C.
-- Convert the sensor output into a wind-direction value.
-- Handle the 0°/360° transition correctly.
-- Apply an offset calibration to establish the physical north reference.
-
-### 4.3 Temperature — SHT41
-
-| Parameter | Specification |
-|---|---|
-| Sensor | SHT41 |
-| Measurement | Ambient temperature |
-| Communication | I²C |
-| MCU connections | SDA and SCL |
-| Default I²C address | 0x44 |
-| Processed variable | Ambient temperature |
-
-The SHT41 shares the I²C bus with the AS5600.
-
-## 5. Power Control Interface
-
-| Parameter | Specification |
-|---|---|
-| Control signal | D10 (provisional) |
-| Control component | Logic-level MOSFET |
-| Controlled rail | 5 V |
-| Function | Enable / disable selected external load |
-| Default state | OFF during reset |
-
-The MOSFET must be selected according to its gate-drive requirements and load current.
+| Sensor | Interface | Notes |
+|---|---|---|
+| Anemometer (3-cup rotor, magnet + reed switch) | Digital pulse on PB4 | one pulse per magnet passage; magnets per revolution to define (ICD-03) |
+| Wind direction (AS5600) | I²C 0x36, 12-bit angle | diametrically magnetised magnet on the vane axis; no mechanical contact; air gap per datasheet (ICD-04, ICD-05); north offset applied by calibration, never hard-coded |
+| Temperature (TMP102) | I²C 0x48 | one-shot conversion, 35 ms; read every 10th wind sample; offset applied by calibration |
+| Battery voltage | ADC on PB3 | flagged low below 3.3 V (`LOW_BATTERY_V`) |
 
 ## 6. Interface Verification
 
-Before integration, verify:
+Hardware checks use the firmware tests listed in `docs/testing.md`, in this order: `test_board` (supply, deep sleep), `test_i2c` (0x36 and 0x48 found), `test_temperature`, `test_as5600` (magnet detected, angle smooth over 0–360°), `test_reed` (one pulse per magnet, no doubles), `test_battery` (within 0.05 V of a multimeter).
 
-1. The bench supply delivers a stable 3.6 V.
-2. The TPS61023 generates a stable 5 V output.
-3. The Wio-E5 Mini operates correctly from the 5 V output.
-4. The sensor supply rails have correct voltage levels.
-5. The common ground is correctly connected.
-6. D4 detects magnetic rotor pulses.
-7. The AS5600 is detected over I²C at address 0x36.
-8. The SHT41 is detected over I²C at address 0x44.
-9. Both sensors operate simultaneously on the same I²C bus.
-10. The AS5600 reports correct angular changes when the vane is rotated.
-11. The MOSFET correctly switches the intended load.
-12. All GPIO and I²C signal voltages are compatible with the Wio-E5 Mini.
+Bench checks before powering the board: stable 3.6 V at the input, stable 5 V at the TPS61023 output, correct common ground, 3.3 V on the I²C lines.
 
 ## 7. Open Hardware Decisions
 
-| ID | Open Decision | Responsible Team |
-|---|---|---|
-| ICD-01 | Confirm physical GPIO mapping for D4 and D10 | Electronics |
-| ICD-02 | Select reed switch or Hall sensor | Electronics |
-| ICD-03 | Determine magnet count and spacing for anemometer | Mechanical + Electronics |
-| ICD-04 | Select AS5600 magnet and define mechanical alignment | Mechanical |
-| ICD-05 | Define AS5600 magnet-to-sensor air gap | Mechanical |
-| ICD-06 | Confirm I²C pull-ups and bus voltage | Electronics |
-| ICD-07 | Finalise sensor supply voltage architecture | Electronics |
-| ICD-08 | Confirm TPS61023 output and peak-current capability | Electronics |
-| ICD-09 | Select MOSFET and gate-drive configuration | Electronics |
-| ICD-10 | Confirm connectors and wiring | Integration |
-
+| ID | Decision | Status | Team |
+|---|---|---|---|
+| ICD-01 | GPIO mapping | **Closed**: PA15, PB15, PB4, PB3 | Electronics |
+| ICD-02 | Reed switch or Hall sensor | **Closed**: reed switch | Electronics |
+| ICD-03 | Magnet count and spacing on the rotor | Open | Mechanical + Electronics |
+| ICD-04 | AS5600 magnet and alignment | Open | Mechanical |
+| ICD-05 | AS5600 air gap | Open | Mechanical |
+| ICD-06 | I²C pull-up values | Open (voltage: 3V3) | Electronics |
+| ICD-07 | Power-gating of the AS5600 (needs a power pin; decides the power-budget scenario) | **Open, high impact** | Electronics + Firmware |
+| ICD-08 | TPS61023 peak-current capability during TX | Open | Electronics |
+| ICD-09 | MOSFET and switched 5 V load | **Dropped** unless ICD-07 needs a switch | Electronics |
+| ICD-10 | Connectors and wiring | Open | Integration |
+| ICD-11 | Insert schematic (Lina) | Open | Electronics |
