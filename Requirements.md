@@ -1,14 +1,14 @@
 # DOCUMENT 1 — PROTOTYPE REQUIREMENTS DOCUMENT (PRD)
 
 **Project:** Urban Wind Sensor Network  
-**Version:** 1.0 — Proof of Concept  
+**Version:** 1.1 — Proof of Concept (aligned with firmware and server implementation)  
 **System configuration:** 2 sensor nodes + 1 LoRaWAN gateway
 
 ## 1. Purpose and Scope
 
 This document defines the functional, performance, mechanical, electronic, and integration requirements for the Urban Wind Sensor Network prototype.
 
-The objective is to demonstrate that three independently operating sensor nodes can measure wind speed, wind direction, and ambient temperature, calculate 10-minute measurement aggregates, and transmit the resulting data to a central gateway using LoRaWAN.
+The objective is to demonstrate that independently operating sensor nodes can measure wind speed, wind direction, and ambient temperature, calculate one summary per 10-minute window, and transmit it over LoRaWAN to a gateway and a server that checks, stores and displays the data.
 
 The prototype is intended to demonstrate technical feasibility, not production readiness.
 
@@ -16,22 +16,37 @@ The prototype is intended to demonstrate technical feasibility, not production r
 
 Each sensor node consists of:
 
-- Custom three-cup anemometer for wind-speed measurement.
-- Custom wind vane with magnetic angular decoder for wind-direction measurement.
-- Magnetic pickup (reed switch or low-power Hall sensor) for rotor rotation detection.
-- SHT41 temperature sensor.
-- Seeed Wio-E5 Mini microcontroller and LoRa radio.
-- TPS61023 boost converter.
+- Custom three-cup anemometer for wind-speed measurement (magnet + reed switch, one pulse per magnet passage).
+- Custom wind vane with AS5600 magnetic angular decoder for wind-direction measurement.
+- SparkFun SEN-13314 (TI TMP102) temperature sensor.
+- Seeed LoRa-E5 mini (STM32WLE5JC, LoRaWAN built in).
+- TPS61023 boost converter (3.6 V → 5 V).
+- Battery voltage monitor (resistor divider read by the ADC).
 - External bench power supply during prototype testing.
 
-The network consists of a couple of sensor nodes communicating with one LoRaWAN gateway.
+The network chain is: nodes → LoRaWAN gateway → The Things Network (TTN) → MQTT → Python server (decoding, validation, storage, analysis, dashboard).
 
-### 1.2 Prototype Constraints
+### 1.2 Node Timing (reference for all documents)
 
-- A bench power supply will replace the final battery during initial prototype testing.
-- Initial power consumption calculations are estimates only.
-- Actual power consumption will be measured independently during testing.
-- The final battery chemistry, capacity, and configuration are not yet selected.
+All timing values are defined once, in `firmware/include/config.h`, and must not be retyped elsewhere.
+
+| Parameter | Value | Config name |
+|---|---|---|
+| Reporting window | 600 s (10 min) | `WINDOW_S` |
+| Sampling burst inside the window | 300 s (5 min) | `BURST_S` |
+| Sampling rate | 1 Hz (300 samples per burst) | `SAMPLE_PERIOD_MS` |
+| Temperature reading | every 10th sample | `TEMP_SAMPLE_EVERY_N` |
+| Processing + uplink + receive windows | about 2 s of activity | — |
+| Deep sleep | remainder of the window | — |
+
+One window = 5 min sampling → processing and uplink → calibration downlink (if any) received in the receive windows that follow the uplink → deep sleep until the next window. `window_s` in `server/uwsn/config.py` must equal `WINDOW_S`.
+
+### 1.3 Prototype Constraints
+
+- A bench power supply replaces the battery during initial prototype testing.
+- The battery is not integrated yet: the power analysis (estimate, then 24-hour measurement) comes first and will drive the battery choice.
+- Initial power consumption calculations are estimates only; actual consumption will be measured independently during testing.
+- The node has no real-time clock: timestamps are assigned by the network/server when a packet is received.
 - Long-term environmental durability and lifetime are outside the PoC verification scope.
 
 ## 2. Functional Requirements
@@ -41,7 +56,7 @@ The network consists of a couple of sensor nodes communicating with one LoRaWAN 
 | FUN-01 | Wind-speed measurement | Measure wind speeds from 0.3 to 20 m/s | Must |
 | FUN-02 | Wind-direction measurement | Measure direction over 0–360° | Must |
 | FUN-03 | Temperature measurement | Measure ambient temperature | Must |
-| FUN-04 | Measurement records | Associate measurements with timestamps and node ID | Must |
+| FUN-04 | Measurement records | Associate each record with a node ID (from the LoRaWAN device) and a timestamp (assigned on reception by the network/server) | Must |
 | FUN-05 | Measurement interval | Generate one measurement record every 10 minutes | Must |
 | FUN-06 | Data processing | Calculate wind-speed average, wind-direction representation, and temperature | Must |
 | FUN-07 | Data transmission | Transmit measurement records using LoRaWAN | Must |
@@ -57,14 +72,16 @@ The network consists of a couple of sensor nodes communicating with one LoRaWAN 
 | PER-02 | Wind-speed range | 0.3–20 m/s | Must |
 | PER-03 | Wind-direction accuracy | ±10° | Must |
 | PER-04 | Wind-direction range | 0–360° | Must |
-| PER-05 | Temperature accuracy | ±0.5°C against a reference sensor | Must |
+| PER-05 | Temperature accuracy | ±0.5°C against a reference sensor (a temperature offset can be applied by calibration downlink) | Must |
 | PER-06 | Measurement resolution | Wind speed: 0.2 m/s; direction: 5°; temperature: 0.5°C | Target |
 | PER-07 | Measurement repeatability | Repeat measurements under identical conditions with no more than 5% variation for wind speed | Target |
-| PER-08 | Measurement aggregation | Calculate average wind speed and temperature over each 10-minute interval | Must |
-| PER-09 | Wind gust measurement | Record maximum wind speed within each 10-minute interval | Should |
-| PER-10 | Data validity | Flag missing, invalid, or physically implausible sensor readings | Must |
+| PER-08 | Measurement aggregation | Calculate average wind speed and temperature over the 5-minute sampling burst (300 samples at 1 Hz) of each 10-minute window | Must |
+| PER-09 | Wind gust measurement | Record maximum wind speed within each window. *TBC: the payload currently carries the mean and the standard deviation; confirm whether the maximum is included* | Should |
+| PER-10 | Data validity | Flag missing, invalid, or physically implausible readings (on-node quality flags for too few good samples and sensor faults; plausibility limits; server-side validation) | Must |
 
-**Clarification:** The minimum wind speed of 0.3 m/s represents the required measurement threshold. The rotor must also physically start rotating at or under this wind speed. These are related but separate verification criteria.
+**Clarification (aggregation window):** the 10-minute record summarises the 5-minute burst, not the full 10 minutes. Wind during the 5-minute sleep period is not measured. This is a deliberate power-saving choice (`BURST_S ≤ WINDOW_S`).
+
+**Clarification (minimum speed):** the minimum wind speed of 0.3 m/s represents the required measurement threshold. The rotor must also physically start rotating at or under this wind speed. These are related but separate verification criteria.
 
 For wind direction, angular calculations and averaging must account for the 0°/360° boundary. A simple arithmetic average of angles is not acceptable.
 
@@ -112,7 +129,7 @@ The mechanical team must calculate and document the following parameters before 
 | Bearing running torque | Expected friction during normal operation |
 | Aerodynamic torque | Estimated available starting torque at 0.3 m/s |
 | Maximum rotational speed | Estimated rotor speed at 20 m/s |
-| Magnet positioning | Magnet-to-sensor distance and number of magnetic events per revolution |
+| Magnet positioning | Magnet-to-sensor distance and number of magnetic events per revolution (pulse rate at 20 m/s must stay below the 500 Hz debounce limit, `REED_DEBOUNCE_US`) |
 
 **Critical design criterion:**
 
@@ -130,30 +147,30 @@ The rotor must demonstrate repeatable starting at 0.3 m/s under the defined test
 
 | ID | Requirement | Target / Specification | Priority |
 |---|---|---|---|
-| ELE-01 | Rotation detection | Detect rotor rotation using a magnetic pickup | Must |
-| ELE-02 | Pulse detection | Detect each magnet passage reliably | Must |
+| ELE-01 | Rotation detection | Detect rotor rotation using a magnetic pickup (reed switch) | Must |
+| ELE-02 | Pulse detection | Detect each magnet passage reliably (interrupt + debounce) | Must |
 | ELE-03 | Signal processing | Calculate rotor rotational frequency from pulse timing | Must |
-| ELE-04 | Wind-speed conversion | Convert rotational frequency into calibrated wind speed | Must |
+| ELE-04 | Wind-speed conversion | Convert rotational frequency into calibrated wind speed (gain and offset, adjustable by downlink) | Must |
 | ELE-05 | Signal integrity | Avoid false pulses and missed detections | Must |
 
 ### 5.2 Wind-Direction Acquisition
 
 | ID | Requirement | Target / Specification | Priority |
 |---|---|---|---|
-| ELE-06 | Direction sensor | Use a AS5600 magnetic angular decoder to measure a magnet mechanically connected to the wind vane | Must |
-| ELE-07 | Data acquisition | Read the AS5600 using an I²C input | Must |
-| ELE-08 | Direction calibration | Establish the relationship between recepted value and physical direction | Must |
+| ELE-06 | Direction sensor | Use an AS5600 magnetic angular decoder to measure a magnet mechanically connected to the wind vane | Must |
+| ELE-07 | Data acquisition | Read the AS5600 over I²C | Must |
+| ELE-08 | Direction calibration | Establish the relationship between the received value and physical north (direction offset, adjustable by downlink) | Must |
 
 ### 5.3 Temperature and Processing Electronics
 
 | ID | Requirement | Target / Specification | Priority |
 |---|---|---|---|
-| ELE-9 | Temperature sensor | Use an SHT41 or equivalent sensor | Must |
-| ELE-10 | Microcontroller | Use the Seeed Wio-E5 Mini | Must |
-| ELE-11 | Power conversion | Use the TPS61023 boost converter where required by the circuit architecture | Must |
+| ELE-09 | Temperature sensor | Use a TMP102-based sensor (SparkFun SEN-13314) over I²C | Must |
+| ELE-10 | Microcontroller | Use the Seeed LoRa-E5 mini | Must |
+| ELE-11 | Power conversion | Use the TPS61023 boost converter (3.6 V → 5 V) | Must |
 | ELE-12 | Data acquisition | Acquire sensor measurements and process them locally | Must |
-| ELE-13 | Low-power operation | Implement sleep periods between measurement and transmission cycles | Must |
-| ELE-14 | Fault detection | Detect missing pulses, disconnected sensors, and invalid readings | Should |
+| ELE-13 | Low-power operation | Deep sleep between sampling bursts and uplinks | Must |
+| ELE-14 | Fault detection | Detect missing pulses, disconnected sensors, stuck vane or cups, and invalid readings | Should |
 
 ## 6. Data and Communication Requirements
 
@@ -162,9 +179,12 @@ The rotor must demonstrate repeatable starting at 0.3 m/s under the defined test
 | COM-01 | Communication protocol | LoRaWAN | Must |
 | COM-02 | Network topology | Prototype nodes communicating with one gateway | Must |
 | COM-03 | Transmission interval | One data transmission per node every 10 minutes | Must |
-| COM-04 | Data content | Node ID, timestamp, average wind speed, wind direction, and temperature | Must |
+| COM-04 | Data content | 14-byte uplink: payload version, mean wind speed, wind speed standard deviation, wind direction, temperature, battery voltage, quality flags. Node ID and timestamp come from the network metadata | Must |
 | COM-05 | Data reception | Gateway must receive and identify packets from all nodes | Must |
 | COM-06 | Packet integrity | Received data must be correctly decoded and associated with its originating node | Must |
+| COM-07 | Remote calibration | Calibration values (speed gain/offset, direction offset, temperature offset) can be sent by downlink (9 bytes, port 2), are applied at once and kept in flash | Should |
+
+Payload and downlink formats are documented in `docs/code_documentation.md`.
 
 ## 7. Power Requirements
 
@@ -174,8 +194,9 @@ The rotor must demonstrate repeatable starting at 0.3 m/s under the defined test
 | POW-02 | Input voltage | Nominal 3.6 V DC bench-supply rail for the prototype power architecture | Design target |
 | POW-03 | Power estimation | Establish an initial estimated average-current budget | Must |
 | POW-04 | Power measurement | Measure actual average current independently during testing | Must |
-| POW-05 | Operating modes | Characterise active, sleep, and LoRa transmission consumption | Must |
+| POW-05 | Operating modes | Characterise burst-sampling, sleep, and LoRa transmission consumption | Must |
 | POW-06 | Power stability | Maintain stable supply voltages during sensor operation and radio transmission | Must |
+| POW-07 | Battery monitoring | Measure the supply voltage and flag a low battery (below 3.3 V) | Should |
 
 The final battery selection and battery-autonomy validation are explicitly excluded from the prototype requirements.
 
@@ -183,16 +204,25 @@ The final battery selection and battery-autonomy validation are explicitly exclu
 
 | ID | Requirement | Target / Specification | Priority |
 |---|---|---|---|
-| INT-01 | Node integration | Integrate mechanical sensors and electronics into three functional nodes | Must |
+| INT-01 | Node integration | Integrate mechanical sensors and electronics into two functional nodes | Must |
 | INT-02 | Gateway integration | Connect the gateway to the LoRaWAN network and demonstrate packet reception | Must |
 | INT-03 | Outdoor deployment | Deploy the nodes outdoors for a field demonstration | Must |
 | INT-04 | Measurement continuity | Demonstrate repeated 10-minute measurement and transmission cycles | Must |
 | INT-05 | Mechanical operation | Demonstrate stable rotor and vane movement during testing | Must |
 | INT-06 | Prototype protection | Protect electronics sufficiently for the planned outdoor demonstration | Must |
 
-Full IP65 certification, UV endurance, long-term corrosion resistance, vandalism resistance, and survival-wind qualification are not required for this PoC but should be underlined for final product.
+Full IP65 certification, UV endurance, long-term corrosion resistance, vandalism resistance, and survival-wind qualification are not required for this PoC but should be underlined for the final product.
 
-## 9. Prototype Acceptance Criteria
+## 9. Server Requirements (software)
+
+| ID | Requirement | Target / Specification | Priority |
+|---|---|---|---|
+| SRV-01 | Ingestion and decoding | Receive uplinks from TTN (MQTT) and decode the payload | Must |
+| SRV-02 | Validation and storage | Validate each record and store it (SQLite) per node | Must |
+| SRV-03 | Display and export | Dashboard and CSV export of the stored data | Should |
+| SRV-04 | Calibration management | Detect drift against a reference and send new calibration values by downlink | Should |
+
+## 10. Prototype Acceptance Criteria
 
 The prototype will be considered successful when:
 
@@ -208,7 +238,7 @@ The prototype will be considered successful when:
 
 Any performance range not physically accessible with the available calibration equipment must be **explicitly documented as not verified** rather than assumed to pass.
 
-## 10. Future Production Goals (Not Prototype Requirements)
+## 11. Future Production Goals (Not Prototype Requirements)
 
 The following objectives are acknowledged for future development but are not binding requirements for the three-week prototype.
 
